@@ -97,8 +97,9 @@ namespace PartSearchSuggest
 
             string[] words = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
+            // ScorePart already returns Score < 0 when any query word matches no field, so a
+            // separate WordsMatch pre-filter would just re-scan every field redundantly.
             IEnumerable<ScoredPart> ranked = _parts
-                .Where(entry => WordsMatch(entry, words))
                 .Select(entry => ScorePart(entry, words))
                 .Where(match => match.Score >= 0)
                 .OrderBy(match => match.Score)
@@ -148,11 +149,6 @@ namespace PartSearchSuggest
             foreach (IndexedPart entry in _parts)
             {
                 if (!EditorPartAvailability.IsAvailableInEditor(entry.Part))
-                {
-                    continue;
-                }
-
-                if (!WordsMatch(entry, words))
                 {
                     continue;
                 }
@@ -312,37 +308,6 @@ namespace PartSearchSuggest
             });
         }
 
-        private static bool WordsMatch(IndexedPart entry, string[] words)
-        {
-            for (int i = 0; i < words.Length; i++)
-            {
-                if (!WordMatchesAnyField(entry, words[i]))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private static bool WordMatchesAnyField(IndexedPart entry, string word)
-        {
-            if (string.IsNullOrEmpty(word))
-            {
-                return false;
-            }
-
-            for (int i = 0; i < entry.Fields.Count; i++)
-            {
-                if (FieldMatches(entry.Fields[i], word))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static ScoredPart ScorePart(IndexedPart entry, string[] words)
         {
             int aggregateScore = -1;
@@ -425,11 +390,6 @@ namespace PartSearchSuggest
             }
 
             return -1;
-        }
-
-        private static bool FieldMatches(SearchField field, string word)
-        {
-            return ScoreField(field, word) >= 0;
         }
 
         private static int KindPriority(SearchField field)

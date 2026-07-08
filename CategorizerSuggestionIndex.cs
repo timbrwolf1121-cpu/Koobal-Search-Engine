@@ -1144,7 +1144,7 @@ namespace PartSearchSuggest
 
         private static void LogIntakeQueryMatches(string query, List<PartSuggestion> results, int emittedCount)
         {
-            if (!string.Equals(query, "intake", StringComparison.OrdinalIgnoreCase))
+            if (!DebugSettings.Verbose || !string.Equals(query, "intake", StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }

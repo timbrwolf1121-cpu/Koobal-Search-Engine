@@ -24,6 +24,8 @@ namespace PartSearchSuggest
 
         private static bool _dumpIndexStats;
 
+        private static bool _verbose;
+
 
 
         public static bool DumpIndexStats
@@ -37,6 +39,28 @@ namespace PartSearchSuggest
                 EnsureLoaded();
 
                 return _dumpIndexStats;
+
+            }
+
+        }
+
+
+
+        /// <summary>
+        /// Gates high-volume per-keystroke / per-scene diagnostic logging. Off by default so beta
+        /// installs stay quiet; enable with "verbose = true" in DebugSettings.cfg when diagnosing.
+        /// </summary>
+        public static bool Verbose
+
+        {
+
+            get
+
+            {
+
+                EnsureLoaded();
+
+                return _verbose;
 
             }
 
@@ -93,6 +117,26 @@ namespace PartSearchSuggest
                         string value = trimmed.Substring(eq + 1).Trim();
 
                         _dumpIndexStats = value.Equals("true", StringComparison.OrdinalIgnoreCase)
+
+                            || value.Equals("1", StringComparison.Ordinal);
+
+                    }
+
+                }
+
+                else if (trimmed.StartsWith("verbose", StringComparison.OrdinalIgnoreCase))
+
+                {
+
+                    int eq = trimmed.IndexOf('=');
+
+                    if (eq >= 0)
+
+                    {
+
+                        string value = trimmed.Substring(eq + 1).Trim();
+
+                        _verbose = value.Equals("true", StringComparison.OrdinalIgnoreCase)
 
                             || value.Equals("1", StringComparison.Ordinal);
 

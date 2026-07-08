@@ -243,6 +243,11 @@ namespace PartSearchSuggest
 
         private static void LogDedup(string query, PartSuggestion removed, string key, string reason)
         {
+            if (!DebugSettings.Verbose)
+            {
+                return;
+            }
+
             EditorBootstrap.Log(
                 "Dedup '"
                 + (query ?? string.Empty)

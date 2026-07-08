@@ -7,7 +7,7 @@
     <OutputPath>..\..\GameData\KoobalSearchEngine\Plugins\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.8.4.0</Version>
+    <Version>0.8.5.0</Version>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <NoWarn>MSB3277</NoWarn>
   </PropertyGroup>

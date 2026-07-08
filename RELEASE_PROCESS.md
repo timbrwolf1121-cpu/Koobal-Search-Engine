@@ -20,8 +20,9 @@ For any version you ship (even a tiny fix), do ALL of the following:
    (Annotated — not lightweight — so the tag carries a message + date.)
 5. **Drop a built zip in `ReleaseArchive/`** named
    `KoobalSearchEngine_vX.Y.Z.B_<LABEL>.zip` containing the CKAN-style payload
-   `GameData/KoobalSearchEngine/` (DLL, `.version`, README, `PluginData/BrandingSettings.cfg`,
-   `Textures/*.png`). This is the redundant, git-independent on-disk copy.
+   `GameData/KoobalSearchEngine/` (DLL, `.version`, README, `PluginData/BrandingSettings.cfg`).
+   Branding PNGs are unused in-game (programmatic wordmark) and are stored in the source
+   `BrandingAssets/` folder, not shipped. This is the redundant, git-independent on-disk copy.
 
 > A release is NOT done until BOTH the annotated tag AND the `ReleaseArchive/` zip exist.
 > No version may ever be "only-prose" again.

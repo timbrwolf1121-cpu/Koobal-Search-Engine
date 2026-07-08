@@ -409,7 +409,7 @@ namespace PartSearchSuggest
 
         private static void LogAuthorMatches(string query, List<(AuthorEntry Author, int Rank)> matchedAuthors)
         {
-            if (query.Length < 3)
+            if (!DebugSettings.Verbose || query.Length < 3)
             {
                 return;
             }
@@ -447,7 +447,9 @@ namespace PartSearchSuggest
                 return null;
             }
 
-            int partCount = ModFilterMatcher.CountPartsMatchingModFolder(mod.FolderName);
+            // PartCount was resolved via ModFilterMatcher.CountPartsMatchingModFolder during
+            // FinalizeMetadataIndex; reuse it instead of re-scanning every part per keystroke.
+            int partCount = mod.PartCount;
             if (partCount <= 0)
             {
                 return null;
