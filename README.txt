@@ -47,7 +47,14 @@ search path.
 3. Launch KSP → open the VAB or SPH.
 4. `KSP.log` should contain: `[Koobal] Koobal Search Engine v0.8.5.0 active.`
 
-Requires KSP 1.12.x and Harmony (`000_Harmony`).
+### Requirements / dependencies
+
+- **KSP 1.12.x** (built and tested against 1.12.5).
+- **Harmony 2** — the `000_Harmony` folder MUST be present in your `GameData/`.
+  Koobal will not load without it. Most modded installs already have it; if not,
+  download HarmonyKSP and copy its `GameData/000_Harmony/` into your `GameData/`:
+  https://github.com/KSPModdingLibs/HarmonyKSP/releases
+- Nothing else is required — Community Category Kit, ModuleManager, etc. are **not** needed.
 
 ## Try it
 
@@ -105,4 +112,4 @@ Restart the editor after editing (config loads once per game session).
 
 ## License
 
-MIT. See mod page / repository for details.
+MIT — see the bundled `LICENSE` file in this folder for the full text.
