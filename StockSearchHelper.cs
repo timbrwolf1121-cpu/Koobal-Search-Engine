@@ -605,7 +605,8 @@ namespace PartSearchSuggest
             }
 
             // Release custom-filter race guard on focus/typing so stock SearchStart can
-            // create a real SearchRoutine (blur/refocus previously "fixed" this by accident).
+            // create a real SearchRoutine. Do NOT clear on SearchStart itself after apply —
+            // that lets loose PartMatchesSearch overwrite ApplyPrecisePart / categorizer filters.
             if (!StockSearchGuard.IsSuppressed)
             {
                 StockSearchGuard.ClearActiveCustomFilter();

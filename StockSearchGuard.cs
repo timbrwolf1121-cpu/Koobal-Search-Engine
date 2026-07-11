@@ -5,14 +5,19 @@ namespace PartSearchSuggest
 {
     /// <summary>
     /// Minimal race guard (v0.6.7-era): while Koobal is applying a suggestion filter (EnterSuppress)
-    /// or a Koobal custom filter is active, block stock's own async SearchFilterResult
+    /// or a Koobal custom filter is active, block stock SearchStart and stock SearchFilterResult
     /// from overwriting the applied result. Koobal does NOT block stock typing, refresh, tab, or
     /// subassembly flows — those run 100% natively.
     ///
     /// IMPORTANT: never Harmony-skip <see cref="BasePartCategorizer"/> SearchRoutine.
     /// Prefix-skipping an IEnumerator method returns null; stock SearchStart then calls
-    /// StartCoroutine(null) and throws ("routine is null"). Block SearchStart (void) instead
-    /// while suppressed, and clear the custom-filter guard when stock SearchStart runs.
+    /// StartCoroutine(null) and throws ("routine is null"). Block void SearchStart instead
+    /// while suppressed or a Koobal custom filter is active.
+    ///
+    /// Typing clears the custom-filter guard via
+    /// <see cref="StockSearchHelper.CancelPendingStockSearchForTyping"/> before stock can
+    /// SearchStart — so the NRE fix for post-apply typing stays intact without letting blur
+    /// after ApplyPrecisePart / categorizer apply re-run loose stock PartMatchesSearch.
     /// </summary>
     internal static class StockSearchGuard
     {
@@ -107,26 +112,21 @@ namespace PartSearchSuggest
         }
 
         /// <summary>
-        /// Skip stock SearchStart only while Koobal is mid-apply. Safe for a void method.
-        /// When stock SearchStart runs after an apply, release the custom-filter race guard
-        /// so SearchRoutine can return a real IEnumerator (typing works without blur/refocus).
+        /// Skip stock SearchStart while mid-apply or a Koobal custom filter is active.
+        /// Safe for a void method (unlike SearchRoutine). Typing clears the custom-filter
+        /// guard first so subsequent SearchStart/SearchRoutine still get a real IEnumerator.
         /// </summary>
         [HarmonyPatch(typeof(BasePartCategorizer), "SearchStart")]
         private static class BaseSearchStartPatch
         {
             private static bool Prefix()
             {
-                if (IsSuppressed)
+                if (IsSuppressed || HasActiveCustomFilter)
                 {
-                    EditorBootstrap.Log("Blocked stock SearchStart while Koobal filter apply.");
-                    return false;
-                }
-
-                if (HasActiveCustomFilter)
-                {
-                    ClearActiveCustomFilter();
                     EditorBootstrap.Log(
-                        "Cleared active custom filter so stock SearchStart/SearchRoutine can run.");
+                        "Blocked stock SearchStart while custom filter is active"
+                        + (IsSuppressed ? " (apply suppress)." : "."));
+                    return false;
                 }
 
                 return true;

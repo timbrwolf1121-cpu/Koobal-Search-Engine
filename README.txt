@@ -81,14 +81,23 @@ banner plus genuine warnings/errors are logged by default.
 
 ## Changelog (recent)
 
-### v0.8.5.2 — branding footer stays centered (test-report line)
-- **Fix:** empty-query Koobal wordmark no longer left-aligns when recent-search history
-  rows are present, or when the dropdown resizes/repositions (taller panel / move-down).
-- **Cause:** nested footer LayoutGroups + stretch anchors fought TMP preferred width, so
-  the content host could collapse to text width and sit on the left after history/layout.
-- **Change:** stretch-fill branding host (no LayoutGroup on the footer); intrinsic-width
-  wordmark/captions with ContentSizeFitter; parent VLG MiddleCenter without force-expand.
-  Re-assert host stretch after panel width/height changes.
+### v0.8.5.2 — branding footer + organic apply race restore
+- **Apply fix (same assembly, no version bump):** clicking a part suggestion (e.g. Z-100)
+  or categorizer/mod row no longer re-runs loose stock `PartMatchesSearch` and floods
+  the list with unrelated parts (fuselage, etc.). Index predicate === apply predicate
+  is preserved after blur.
+- **Cause (lost v0.7 / v0.8.5.1 regression):** `ApplyPrecisePart` / categorizer custom
+  filters still applied correctly, but `StockSearchGuard` cleared the active custom
+  filter on stock `SearchStart` (blur after click), letting stock overwrite the tight
+  result. That undid the v0.7 organic “keep applied filter” race guard while keeping
+  the v0.8.5.1 “never skip SearchRoutine” NRE fix incomplete.
+- **Change:** block void `SearchStart` while apply-suppressed **or** a Koobal custom
+  filter is active; typing still clears the guard via `CancelPendingStockSearchForTyping`
+  so post-apply typing does not hit the SearchRoutine-null NRE. Do not skip `SearchRoutine`.
+- **Branding (original v0.8.5.2 line):** empty-query Koobal wordmark no longer left-aligns
+  when recent-search history rows are present, or when the dropdown resizes/repositions
+  (taller panel / move-down). Stretch-fill branding host; intrinsic-width wordmark/
+  captions with ContentSizeFitter; parent VLG MiddleCenter without force-expand.
 
 ### v0.8.5.1-beta — suggestion quality rebalance (same assembly)
 - **Restore:** rich mix again — function/category/manufacturer/diameter, mod/author/suite,
@@ -109,8 +118,10 @@ banner plus genuine warnings/errors are logged by default.
   it return null; stock then called `StartCoroutine(null)`. Blur/refocus appeared to
   "fix" it by resetting search state.
 - **Change:** stop skipping `SearchRoutine`; block void `SearchStart` only while a
-  Koobal apply is in progress; clear the custom-filter guard when stock search starts
-  or on focus/typing; recover search flags if ApplySuggestion fails.
+  Koobal apply is in progress; clear the custom-filter guard on focus/typing; recover
+  search flags if ApplySuggestion fails. (**Note:** clearing the guard on every stock
+  `SearchStart` after apply was too aggressive — restored under v0.8.5.2 so applied
+  filters survive blur while typing still clears first.)
 - **QoL (also under this label):** editor (VAB/SPH) no longer starts index builds.
   `GameLoadBootstrap` is the sole builder (save-load / first post-save scene).
   `EditorSearchHook` only waits for readiness and hooks the search UI. Removed hangar
