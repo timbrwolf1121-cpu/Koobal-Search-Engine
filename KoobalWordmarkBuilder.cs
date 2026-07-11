@@ -10,14 +10,15 @@ namespace PartSearchSuggest
     /// </summary>
     internal static class KoobalWordmarkBuilder
     {
-        private const float WordmarkFontSize = 26f;
-        private const float SubtitleFontSize = 11f;
-        private const float MicroFontSize = 9f;
+        // Footer branding — readable at 1080p without dominating suggestion rows.
+        private const float WordmarkFontSize = 28f;
+        private const float SubtitleFontSize = 12f;
+        private const float MicroFontSize = 10f;
         private const float WordmarkCharSpacing = 1.5f;
-        private const float WordmarkPreferredHeight = 28f;
+        private const float WordmarkPreferredHeight = 30f;
 
-        private static readonly Color SubtitleColor = new Color(0.55f, 0.62f, 0.72f, 1f);
-        private static readonly Color MicroTextColor = new Color(0.45f, 0.50f, 0.58f, 0.85f);
+        private static readonly Color SubtitleColor = new Color(0.70f, 0.78f, 0.90f, 1f);
+        private static readonly Color MicroTextColor = new Color(0.60f, 0.68f, 0.78f, 0.95f);
 
         internal static string BuildKoobalRichText()
         {
@@ -37,7 +38,7 @@ namespace PartSearchSuggest
         internal static void BuildFullTagline(Transform parent, TMP_FontAsset font)
         {
             CreateWordmarkLabel(parent, font);
-            CreateCaptionLabel(parent, font, "SEARCH ENGINE", SubtitleFontSize, SubtitleColor, 2f, 14f);
+            CreateCaptionLabel(parent, font, "SEARCH ENGINE", SubtitleFontSize, SubtitleColor, 2f, 15f);
             CreateCaptionLabel(
                 parent,
                 font,
@@ -45,7 +46,7 @@ namespace PartSearchSuggest
                 MicroFontSize,
                 MicroTextColor,
                 0f,
-                11f);
+                12f);
         }
 
         private static TextMeshProUGUI CreateWordmarkLabel(Transform parent, TMP_FontAsset font)

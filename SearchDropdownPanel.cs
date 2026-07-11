@@ -22,32 +22,28 @@ namespace PartSearchSuggest
 
     {
 
-        private const float RowHeight = 30f;
+        // Typography tuned for 1080p readability (v0.8.5.1).
+        private const float PrimaryFontSize = 14f;
+        private const float SubtitleFontSize = 12f;
+        private const float HeaderFontSize = 13f;
+        private const float HeaderIconFontSize = 10f;
 
-        private const float RowHeightWithSubtitle = 42f;
-
+        private const float RowHeight = 34f;
+        private const float RowHeightWithSubtitle = 48f;
         private const float CategoryIconSize = 20f;
-
         private const float CategoryIconPadding = 4f;
-
-        private const float TitleLineHeight = 18f;
-
-        private const float SubtitleLineHeight = 14f;
-
-        private static readonly Color SubtitleTextColor = new Color(0.62f, 0.78f, 0.91f, 1f);
-
-        private const float HeaderHeight = 16f;
-
-        private const float CloseButtonSize = 10f;
-
+        private const float TitleLineHeight = 20f;
+        private const float SubtitleLineHeight = 16f;
+        private const float HeaderHeight = 20f;
+        private const float CloseButtonSize = 14f;
         private const float MaxPanelHeight = 420f;
-
         private const float PanelPadding = 4f;
-
         private const float GapBelowSearchField = 2f;
 
-
-
+        private static readonly Color PrimaryTextColor = new Color(0.96f, 0.98f, 1f, 1f);
+        private static readonly Color SubtitleTextColor = new Color(0.74f, 0.86f, 0.98f, 1f);
+        private static readonly Color HeaderTextColor = new Color(0.88f, 0.92f, 0.98f, 1f);
+        private static readonly Color HeaderIconTextColor = new Color(0.95f, 0.92f, 0.92f, 1f);
         private static readonly Color PanelBackgroundColor = new Color(0.08f, 0.11f, 0.15f, 1f);
 
         private static Sprite _whiteSprite;
@@ -537,13 +533,13 @@ namespace PartSearchSuggest
 
             _headerLabel = labelObject.AddComponent<TextMeshProUGUI>();
 
-            _headerLabel.fontSize = 12f;
+            _headerLabel.fontSize = HeaderFontSize;
 
-            _headerLabel.lineSpacing = -4f;
+            _headerLabel.lineSpacing = -2f;
 
             _headerLabel.margin = Vector4.zero;
 
-            _headerLabel.color = new Color(0.75f, 0.82f, 0.9f, 1f);
+            _headerLabel.color = HeaderTextColor;
 
             _headerLabel.text = "Suggestions";
 
@@ -655,9 +651,9 @@ namespace PartSearchSuggest
 
             label.text = labelText;
 
-            label.fontSize = 8f;
+            label.fontSize = HeaderIconFontSize;
 
-            label.lineSpacing = -4f;
+            label.lineSpacing = -2f;
 
             label.margin = Vector4.zero;
 
@@ -665,7 +661,7 @@ namespace PartSearchSuggest
 
             label.alignment = TextAlignmentOptions.Center;
 
-            label.color = new Color(0.9f, 0.85f, 0.85f, 1f);
+            label.color = HeaderIconTextColor;
 
             label.raycastTarget = false;
 
@@ -1729,7 +1725,7 @@ namespace PartSearchSuggest
 
             label.fontSize = fontSize;
 
-            label.lineSpacing = -4f;
+            label.lineSpacing = -2f;
 
             label.margin = Vector4.zero;
 
@@ -1819,7 +1815,7 @@ namespace PartSearchSuggest
 
             TextMeshProUGUI label = labelObject.AddComponent<TextMeshProUGUI>();
 
-            ConfigureSuggestionLabel(label, 12f, Color.white, TextAlignmentOptions.Center);
+            ConfigureSuggestionLabel(label, PrimaryFontSize, PrimaryTextColor, TextAlignmentOptions.Center);
 
             label.text = title ?? string.Empty;
 
@@ -1952,7 +1948,7 @@ namespace PartSearchSuggest
 
 
 
-            CreateRowLabel(content.transform, "Title", TitleLineHeight, 12f, Color.white, title);
+            CreateRowLabel(content.transform, "Title", TitleLineHeight, PrimaryFontSize, PrimaryTextColor, title);
 
             CreateRowLabel(
 
@@ -1962,7 +1958,7 @@ namespace PartSearchSuggest
 
                 SubtitleLineHeight,
 
-                10f,
+                SubtitleFontSize,
 
                 SubtitleTextColor,
 

@@ -28,9 +28,9 @@ namespace PartSearchSuggest
 
 
 
-        private const float WordmarkFooterHeight = 44f;
+        private const float WordmarkFooterHeight = 48f;
 
-        private const float FullTaglineFooterHeight = 62f;
+        private const float FullTaglineFooterHeight = 68f;
 
 
 
