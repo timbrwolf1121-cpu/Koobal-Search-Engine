@@ -1,4 +1,4 @@
-# Koobal Search Engine — v0.8.5.1
+# Koobal Search Engine — v0.8.5.2
 
 Predictive search for the KSP editor (VAB/SPH). Koobal attaches a Google-style
 dropdown of live suggestions to the **native** stock parts search bar — no separate
@@ -45,7 +45,7 @@ search path.
 1. Close KSP.
 2. Copy `GameData/KoobalSearchEngine/` into your KSP `GameData/` (merge/overwrite).
 3. Launch KSP → open the VAB or SPH.
-4. `KSP.log` should contain: `[Koobal] Koobal Search Engine v0.8.5.1 active.`
+4. `KSP.log` should contain: `[Koobal] Koobal Search Engine v0.8.5.2 active.`
 
 ### Requirements / dependencies
 
@@ -77,6 +77,15 @@ Restart the editor. Beta ships with verbose logging **off** — only a concise s
 banner plus genuine warnings/errors are logged by default.
 
 ## Changelog (recent)
+
+### v0.8.5.2 — hangar-free index load (QoL)
+- **Audit fix:** editor (VAB/SPH) no longer starts index builds. `GameLoadBootstrap` is
+  the sole builder (save-load / first post-save scene). `EditorSearchHook` only waits
+  for readiness and hooks the search UI.
+- Removed hangar fallback `BuildIfNeeded` and wait-path build kicks; clears stale
+  build locks after scene-host destruction so interrupted KSC builds can finish on
+  the next save-bearing load without hangar work.
+- Preserves v0.8.5.1 SearchStart/routine-null fix.
 
 ### v0.8.5.1 — ApplySuggestion SearchStart NRE fix
 - **Fix:** after applying a suggestion, typing in the search field no longer throws

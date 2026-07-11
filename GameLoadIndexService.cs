@@ -7,7 +7,8 @@ namespace PartSearchSuggest
 {
     /// <summary>
     /// Builds and holds per-save search indexes during the post-save-selection loading screen.
-    /// Main menu performs no work; editor entry consumes pre-built indexes (UI hook only).
+    /// Main menu performs no work. Only <see cref="GameLoadBootstrap"/> starts builds.
+    /// Editor entry consumes pre-built indexes (UI hook only — never starts index work).
     /// </summary>
     internal static class GameLoadIndexService
     {
@@ -29,6 +30,11 @@ namespace PartSearchSuggest
 
         internal static bool IsFullReady => _fullReady;
 
+        /// <summary>
+        /// True for first post-save scene that still needs indexes. EDITOR is included only so
+        /// save-resume into VAB/SPH can finish indexing on that load screen — not for KSC→hangar
+        /// re-entry (IsReadyForSave short-circuits once built).
+        /// </summary>
         internal static bool ShouldBuildForCurrentScene()
         {
             if (HighLogic.CurrentGame == null)
@@ -74,6 +80,13 @@ namespace PartSearchSuggest
 
         internal static IEnumerator BuildIfNeeded(MonoBehaviour host)
         {
+            // Scene hosts are destroyed on transition; a mid-build lock can be left stale.
+            if (_buildInProgress && !_fullReady)
+            {
+                EditorBootstrap.Log("Clearing stale index-build lock from prior scene host.");
+                _buildInProgress = false;
+            }
+
             if (_buildInProgress)
             {
                 yield break;
@@ -134,6 +147,10 @@ namespace PartSearchSuggest
             _buildInProgress = false;
         }
 
+        /// <summary>
+        /// Wait-only. Never starts index builds (hangar must stay free of load work).
+        /// <see cref="GameLoadBootstrap"/> is the sole build initiator.
+        /// </summary>
         internal static IEnumerator WaitUntilBasicReady(MonoBehaviour host)
         {
             if (_basicReady)
@@ -145,26 +162,18 @@ namespace PartSearchSuggest
             float elapsed = 0f;
             while (!_basicReady && elapsed < timeout)
             {
-                if (!_buildInProgress && ShouldBuildForCurrentScene())
-                {
-                    yield return host.StartCoroutine(BuildIfNeeded(host));
-                }
-
-                if (_basicReady)
-                {
-                    yield break;
-                }
-
                 elapsed += UnityEngine.Time.unscaledDeltaTime;
                 yield return null;
             }
 
             if (!_basicReady)
             {
-                EditorBootstrap.LogWarning("Save-load basic index not ready — editor fallback build may be slow.");
+                EditorBootstrap.LogWarning(
+                    "Save-load basic index not ready after wait — dropdown disabled (no hangar rebuild).");
             }
         }
 
+        /// <summary>Wait-only for full metadata/categorizer indexes. Does not start builds.</summary>
         internal static IEnumerator WaitUntilFullReady(MonoBehaviour host)
         {
             if (_fullReady)

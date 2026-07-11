@@ -94,7 +94,8 @@ namespace PartSearchSuggest
             _fieldRect = _searchField.GetComponent<RectTransform>();
             _history = new SearchHistory();
 
-            // Indexes are built during save-load (GameLoadIndexService). Editor entry is UI hook only.
+            // Indexes are built only during save-load (GameLoadBootstrap). Hangar entry is UI hook only —
+            // wait for readiness; never start BuildIfNeeded here (no hangar index/scan work).
             yield return GameLoadIndexService.WaitUntilBasicReady(this);
 
             _index = GameLoadIndexService.PartIndex;
@@ -103,16 +104,8 @@ namespace PartSearchSuggest
 
             if (_index == null)
             {
-                EditorBootstrap.LogWarning("Part index unavailable — editor fallback build.");
-                yield return GameLoadIndexService.BuildIfNeeded(this);
-                _index = GameLoadIndexService.PartIndex;
-                _metadataIndex = GameLoadIndexService.MetadataIndex;
-                _categorizerIndex = GameLoadIndexService.CategorizerIndex;
-            }
-
-            if (_index == null)
-            {
-                EditorBootstrap.LogWarning("Part index unavailable after fallback — dropdown disabled.");
+                EditorBootstrap.LogWarning(
+                    "Part index unavailable after save-load wait — dropdown disabled (no hangar rebuild).");
                 yield break;
             }
 
