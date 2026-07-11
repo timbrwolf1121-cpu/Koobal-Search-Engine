@@ -5,7 +5,7 @@ This zip contains BOTH the player mod package AND the matching source code.
 
 Extract the zip anywhere convenient. You will see:
 
-  FORUM_INSTALL.txt
+  Installation Instructions.txt
   GameData/KoobalSearchEngine/   <- player install
   Source/KoobalSearchEngine_v0.8.5.1-beta/   <- complete source (v0.8.5.1-beta)
 

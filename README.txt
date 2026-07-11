@@ -105,7 +105,7 @@ banner plus genuine warnings/errors are logged by default.
   (stock TMP font has no wastebasket glyph; no suitable Squad UI sprite found). Tooltip
   remains "Clear history".
 - **Packaging:** dual-deploy beta (main + ModTest); forum zip includes GameData + Source
-  + LICENSE + FORUM_INSTALL; author `timbrwolf1121`; `.version` points at GitHub.
+  + LICENSE + Installation Instructions; author `timbrwolf1121`; `.version` points at GitHub.
 
 ### v0.8.5.0-beta — optimization + sanitary beta pass
 - **Performance:** removed a redundant per-keystroke field re-scan in part matching;
