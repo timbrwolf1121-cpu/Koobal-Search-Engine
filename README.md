@@ -1,10 +1,7 @@
 ﻿# Koobal Search Engine
 
-KSP 1.12.x part-search suggestions mod by timbrwolf1121.
+**Current release: v0.8.5.2** (GitHub Release + player zip).
 
-## Downloads
+Courtesy source snapshot: `Source/KoobalSearchEngine_v0.8.5.2_SOURCE.zip` (zip-in-folder only).
 
-- **Player packages:** use [Releases](https://github.com/timbrwolf1121-cpu/Koobal-Search-Engine/releases) (GameData zip; includes LICENSE).
-- **Source (courtesy):** see the zip under [`Source/`](Source/) — currently `Source/KoobalSearchEngine_v0.8.6.0_SOURCE.zip`.
-
-Do not expect a full unpacked source tree at the repository root.
+Suggestion-research / v0.8.6 work is **parked** until explicitly unparked. Version target when resumed: TBD (was 0.8.6).
