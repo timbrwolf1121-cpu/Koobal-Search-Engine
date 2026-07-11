@@ -114,7 +114,14 @@ namespace PartSearchSuggest
             "kerbal", "kerbals", "vessel", "vessels", "craft", "ship", "ships",
             "thing", "things", "stuff", "item", "items", "piece", "pieces",
             "and", "the", "for", "you", "your", "all", "any", "are", "but", "not",
-            "out", "use", "used", "using", "via", "per", "plus", "also"
+            "out", "use", "used", "using", "via", "per", "plus", "also",
+            // Extra synonym / filler that still slips past short-prefix tag indexes
+            "advanced", "available", "compatible", "configured", "construction",
+            "deploy", "deployed", "deployment", "equipment", "equipped", "experimental",
+            "flexible", "functional", "improved", "integrated", "mechanical",
+            "modular", "operation", "operational", "optimized", "original",
+            "practical", "precision", "professional", "robust", "specialized",
+            "standardised", "standardized", "technical", "technology", "versatile"
         };
 
         public static bool IsSuggestionWorthyTag(string tag)

@@ -36,6 +36,10 @@ namespace PartSearchSuggest
         // Pull a wider categorizer pool, then take top RankScore rows (already quality-filtered).
         private const int MaxCategorizerCandidates = 16;
         private const int MaxCategorizerSuggestions = 8;
+        private const int MaxHistoryAsSuggestions = 3;
+        private const int MinReservedFilterSlotsWhenCategorical = 3;
+        private const int MinReservedPartSlots = 4;
+        private const int MinReservedMetadataSlots = 1;
 
         private TMP_InputField _searchField;
         private RectTransform _fieldRect;
@@ -599,7 +603,9 @@ namespace PartSearchSuggest
 
             bool queryEmpty = string.IsNullOrWhiteSpace(query);
 
-            if (preferHistory)
+            // Empty field: history browse + branding. Non-empty: history rows that
+            // prefix/match the query surface near the top (without history-mode chrome).
+            if (preferHistory && queryEmpty)
             {
                 foreach (string entry in _history.Match(query, MaxSuggestions))
                 {
@@ -615,9 +621,28 @@ namespace PartSearchSuggest
                 }
             }
 
-
             if (!string.IsNullOrWhiteSpace(query))
             {
+                PartPersonalPriors.RefreshFromHistory(_history.Entries);
+
+                // History-as-suggestions: matching recent queries near the top.
+                int historyRank = -20;
+                int historyAdded = 0;
+                foreach (string entry in _history.Match(query, MaxHistoryAsSuggestions))
+                {
+                    suggestions.Add(new PartSuggestion
+                    {
+                        Kind = SuggestionKind.History,
+                        QueryText = entry,
+                        DisplayText = entry,
+                        MatchReason = "recent",
+                        Part = null,
+                        IsHistory = true,
+                        RankScore = historyRank + historyAdded
+                    });
+                    historyAdded++;
+                }
+
                 List<PartSuggestion> metadataSuggestions = _metadataIndexReady
                     ? _metadataIndex.Match(query, MaxMetadataSuggestions).ToList()
                     : new List<PartSuggestion>();
@@ -627,22 +652,13 @@ namespace PartSearchSuggest
                         _categorizerIndex.Match(query, MaxCategorizerCandidates).ToList())
                     : new List<PartSuggestion>();
 
-                int firstClassCount = metadataSuggestions.Count
-                    + categorizerSuggestions.Count;
-                int partBudget = MaxSuggestions - firstClassCount;
-                if (partBudget < 6)
-                {
-                    partBudget = 6;
-                }
-
-                List<PartSuggestion> partSuggestions = _index
-                    .Match(query, partBudget)
-                    .Where(part => !IsRedundantPartSuggestion(part, metadataSuggestions, categorizerSuggestions))
-                    .ToList();
-
-                suggestions.AddRange(metadataSuggestions);
-                suggestions.AddRange(categorizerSuggestions);
-                suggestions.AddRange(partSuggestions);
+                bool categorical = SuggestionCategoricalQuery.LooksCategorical(query);
+                AssembleTypeAwareSuggestions(
+                    suggestions,
+                    metadataSuggestions,
+                    categorizerSuggestions,
+                    query,
+                    categorical);
 
                 suggestions = SuggestionDedupHelper.Dedup(suggestions, query);
 
@@ -748,6 +764,76 @@ namespace PartSearchSuggest
             }
 
             return budgeted;
+        }
+
+        /// <summary>
+        /// Type-aware mix: when the query looks categorical, reserve filter slots so parts
+        /// don't starve categorizer/metadata rows (v0.7 richness without junk).
+        /// </summary>
+        private void AssembleTypeAwareSuggestions(
+            List<PartSuggestion> destination,
+            List<PartSuggestion> metadataSuggestions,
+            List<PartSuggestion> categorizerSuggestions,
+            string query,
+            bool categorical)
+        {
+            int reservedFilters = categorical
+                ? MinReservedFilterSlotsWhenCategorical
+                : 1;
+            int reservedMeta = MinReservedMetadataSlots;
+            int reservedParts = MinReservedPartSlots;
+
+            var takenFilters = new List<PartSuggestion>();
+            for (int i = 0; i < categorizerSuggestions.Count && takenFilters.Count < MaxCategorizerSuggestions; i++)
+            {
+                takenFilters.Add(categorizerSuggestions[i]);
+            }
+
+            var takenMeta = new List<PartSuggestion>();
+            for (int i = 0; i < metadataSuggestions.Count && takenMeta.Count < MaxMetadataSuggestions; i++)
+            {
+                takenMeta.Add(metadataSuggestions[i]);
+            }
+
+            // Ensure reserved minimums when available (categorical queries keep filter presence).
+            if (categorical && takenFilters.Count < reservedFilters)
+            {
+                // already took all available below MaxCategorizerSuggestions
+            }
+
+            int firstClassCount = takenMeta.Count + takenFilters.Count;
+            int partBudget = MaxSuggestions - firstClassCount - MaxHistoryAsSuggestions;
+            if (partBudget < reservedParts)
+            {
+                // Trim excess filters/meta beyond reserved minimums to free part slots.
+                while (partBudget < reservedParts
+                    && takenFilters.Count > reservedFilters)
+                {
+                    takenFilters.RemoveAt(takenFilters.Count - 1);
+                    partBudget++;
+                }
+
+                while (partBudget < reservedParts
+                    && takenMeta.Count > reservedMeta)
+                {
+                    takenMeta.RemoveAt(takenMeta.Count - 1);
+                    partBudget++;
+                }
+
+                if (partBudget < reservedParts)
+                {
+                    partBudget = reservedParts;
+                }
+            }
+
+            List<PartSuggestion> partSuggestions = _index
+                .Match(query, partBudget)
+                .Where(part => !IsRedundantPartSuggestion(part, takenMeta, takenFilters))
+                .ToList();
+
+            destination.AddRange(takenMeta);
+            destination.AddRange(takenFilters);
+            destination.AddRange(partSuggestions);
         }
 
         private static bool IsRedundantPartSuggestion(

@@ -58,6 +58,14 @@ namespace PartSearchSuggest
         // Allow title/name/metadata/tag fields; description scores sit above this ceiling.
         internal const int EnterSearchMaxAggregateScore = AutoTagContains;
 
+        /// <summary>
+        /// Text scores at or above this are "weak" (loose tag/auto/description). Weak-only
+        /// result sets show fewer rows instead of flooding the dropdown with mediocre hits.
+        /// </summary>
+        internal const int WeakResultScoreThreshold = TagContains;
+
+        private const int WeakResultMaxRows = 4;
+
         private readonly List<IndexedPart> _parts = new List<IndexedPart>();
 
         public int PartCount => _parts.Count;
@@ -66,6 +74,7 @@ namespace PartSearchSuggest
         {
             _parts.Clear();
             ModMetadataCache.Build();
+            PartPopularityPriors.EnsureLoaded();
 
             if (PartLoader.Instance == null || PartLoader.Instance.loadedParts == null)
             {
@@ -78,6 +87,7 @@ namespace PartSearchSuggest
                 _parts.Add(IndexPart(part));
             }
 
+            PartSuitePreference.BuildFromAvailableParts();
             EditorBootstrap.Log("Indexed " + _parts.Count + " editor-available parts.");
         }
 
@@ -85,6 +95,7 @@ namespace PartSearchSuggest
         {
             _parts.Clear();
             ModMetadataCache.Build();
+            PartPopularityPriors.EnsureLoaded();
 
             if (PartLoader.Instance == null || PartLoader.Instance.loadedParts == null)
             {
@@ -102,6 +113,7 @@ namespace PartSearchSuggest
                 }
             }
 
+            PartSuitePreference.BuildFromAvailableParts();
             EditorBootstrap.Log("Indexed " + _parts.Count + " editor-available parts.");
         }
 
@@ -118,12 +130,20 @@ namespace PartSearchSuggest
 
             // ScorePart already returns Score < 0 when any query word matches no field, so a
             // separate WordsMatch pre-filter would just re-scan every field redundantly.
-            IEnumerable<ScoredPart> ranked = _parts
+            List<ScoredPart> ranked = _parts
                 .Select(entry => ScorePart(entry, words, titleFirst))
                 .Where(match => match.Score >= 0)
-                .OrderBy(match => match.Score)
+                .OrderBy(match => RankWithPriors(match))
                 .ThenBy(match => KindPriority(match.BestField, titleFirst))
-                .ThenBy(match => match.Entry.DisplayText, StringComparer.OrdinalIgnoreCase);
+                .ThenBy(match => match.Entry.DisplayText, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            int effectiveMax = maxResults;
+            if (ranked.Count > 0 && ranked[0].Score >= WeakResultScoreThreshold)
+            {
+                // Weak-result UX: only weak tag/auto/desc hits — show fewer rows, not 10 mediocre.
+                effectiveMax = Math.Min(maxResults, WeakResultMaxRows);
+            }
 
             int count = 0;
             foreach (ScoredPart match in ranked)
@@ -133,19 +153,46 @@ namespace PartSearchSuggest
                     Kind = SuggestionKind.Part,
                     QueryText = match.Entry.Part.name,
                     DisplayText = match.Entry.DisplayText,
-                    MatchReason = FormatMatchReason(match.BestField),
+                    MatchReason = FormatPartSubtitle(match.Entry, match.BestField),
                     Part = match.Entry.Part,
                     IsHistory = false,
                     // Always sit below first-class categorizer/metadata rows (RankScore ~0–20).
-                    RankScore = 100 + match.Score
+                    RankScore = RankWithPriors(match)
                 };
 
                 count++;
-                if (count >= maxResults)
+                if (count >= effectiveMax)
                 {
                     yield break;
                 }
             }
+        }
+
+        private static int RankWithPriors(ScoredPart match)
+        {
+            bool strongTitleOrName = IsStrongTitleOrNameMatch(match);
+            int popularity = PartPopularityPriors.SoftBoost(
+                match.Entry.Part,
+                match.Score,
+                strongTitleOrName);
+            int personal = PartPersonalPriors.SoftBoost(match.Entry.Part);
+            int suite = PartSuitePreference.SoftBoost(match.Entry.Part);
+
+            // Soft priors only — scale text score so one step (×10) always beats max soft boost (~7).
+            // Strong title/name matches get no popularity prior (never outranked by craft presence).
+            if (strongTitleOrName)
+            {
+                popularity = 0;
+            }
+
+            return 100 + (match.Score * 10) - popularity - personal - suite;
+        }
+
+        private static bool IsStrongTitleOrNameMatch(ScoredPart match)
+        {
+            return match.BestField != null
+                && (match.BestField.Kind == SearchFieldKind.Title
+                    || match.BestField.Kind == SearchFieldKind.Name);
         }
 
         /// <summary>
@@ -553,6 +600,88 @@ namespace PartSearchSuggest
                 default:
                     return field.Text;
             }
+        }
+
+        /// <summary>
+        /// Disambiguation subtitle: manufacturer / size / variant so Z-100 vs Z-400 is clear.
+        /// Keeps a compact match-kind prefix for dedup redundancy checks (title/tag:/…).
+        /// </summary>
+        private static string FormatPartSubtitle(IndexedPart entry, SearchField bestField)
+        {
+            string matchKind = FormatMatchReason(bestField);
+            if (entry == null || entry.Part == null)
+            {
+                return matchKind;
+            }
+
+            AvailablePart part = entry.Part;
+            var bits = new List<string>(4);
+
+            string manufacturer = Clean(part.manufacturer);
+            if (manufacturer.Length > 0)
+            {
+                bits.Add(ShortenToken(manufacturer, 28));
+            }
+
+            string size = FirstBulkheadToken(part.bulkheadProfiles);
+            if (size.Length > 0)
+            {
+                bits.Add(size);
+            }
+
+            string name = Clean(part.name);
+            if (name.Length > 0)
+            {
+                // Variant / internal id — helps Restock duplicates and Z-100 vs Z-400 families.
+                bits.Add(ShortenToken(name, 36));
+            }
+
+            if (bits.Count == 0)
+            {
+                return matchKind;
+            }
+
+            string detail = string.Join(" · ", bits.ToArray());
+            if (string.IsNullOrEmpty(matchKind)
+                || string.Equals(matchKind, "title", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(matchKind, "name", StringComparison.OrdinalIgnoreCase))
+            {
+                return detail;
+            }
+
+            // Preserve kind:prefix for EditorSearchHook redundancy checks (tag:/manufacturer:/…).
+            if (matchKind.IndexOf(':') >= 0)
+            {
+                return matchKind + " · " + detail;
+            }
+
+            return matchKind + " · " + detail;
+        }
+
+        private static string FirstBulkheadToken(string profiles)
+        {
+            if (string.IsNullOrWhiteSpace(profiles))
+            {
+                return string.Empty;
+            }
+
+            string[] tokens = profiles.Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            return Clean(tokens[0]);
+        }
+
+        private static string ShortenToken(string value, int maxLen)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maxLen)
+            {
+                return value ?? string.Empty;
+            }
+
+            return value.Substring(0, maxLen - 1) + "…";
         }
 
         private static string GetDisplayText(AvailablePart part)

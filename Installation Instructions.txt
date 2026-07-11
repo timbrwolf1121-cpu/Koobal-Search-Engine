@@ -1,4 +1,4 @@
-Koobal Search Engine v0.8.5.2 — Forum download layout
+Koobal Search Engine v0.8.6.0 — Forum download layout
 ====================================================
 
 This zip contains BOTH the player mod package AND the matching source code.
@@ -8,20 +8,20 @@ Extract the zip anywhere convenient. You will see:
   Installation Instructions.txt
   LICENSE
   GameData/KoobalSearchEngine/   <- player install
-  Source/                        <- complete source (v0.8.5.2)
+  Source/                        <- complete source (v0.8.6.0)
 
 PLAYER INSTALL
 --------------
 1. Close KSP.
 2. Copy GameData/KoobalSearchEngine/ into your KSP GameData/ folder (merge/overwrite).
 3. Ensure Harmony 2 (000_Harmony) is installed — see README.txt in the mod folder.
-4. Launch KSP; KSP.log should show: [Koobal] Koobal Search Engine v0.8.5.2 active.
+4. Launch KSP; KSP.log should show: [Koobal] Koobal Search Engine v0.8.6.0 active.
 
 SOURCE
 ------
 The Source/ folder is the complete C# source that built the shipped DLL.
 See Source/BUILD.txt for rebuild instructions.
-Git tag: v0.8.5.2
+Git tag: v0.8.6.0
 
 LICENSE
 -------

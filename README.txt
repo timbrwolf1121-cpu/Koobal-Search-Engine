@@ -1,4 +1,4 @@
-# Koobal Search Engine — v0.8.5.2
+# Koobal Search Engine — v0.8.6.0
 
 Mission: organize the user's parts list and make it quickly and universally accessible and useful. (See docs/MISSION.md.)
 
@@ -47,8 +47,8 @@ search path.
 1. Close KSP.
 2. Copy `GameData/KoobalSearchEngine/` into your KSP `GameData/` (merge/overwrite).
 3. Launch KSP → open the VAB or SPH.
-4. `KSP.log` should contain: `[Koobal] Koobal Search Engine v0.8.5.2 active.`
-   (assembly version `0.8.5.2`.)
+4. `KSP.log` should contain: `[Koobal] Koobal Search Engine v0.8.6.0 active.`
+   (assembly version `0.8.6.0`.)
 
 ### Requirements / dependencies
 
@@ -80,6 +80,30 @@ Restart the editor. Beta ships with verbose logging **off** — only a concise s
 banner plus genuine warnings/errors are logged by default.
 
 ## Changelog (recent)
+
+### v0.8.6.0 — suggestion research / quality improvements
+- **Organic apply:** verified `StockSearchGuard` still blocks void `SearchStart` while a
+  Koobal custom filter is active (regression note in code). Index predicate === apply
+  predicate preserved after blur; never skip `SearchRoutine`.
+- **Soft popularity prior:** optional `PluginData/PartPopularity.cfg` craft-presence /
+  career-essentials weights (strut/solar/RCS spam excluded). Soft RankScore boost only;
+  never outranks strong title/name text matches; fail-open if file missing.
+- **Personal prior:** light boost for parts matching search-history clicks / remembered
+  queries (no hangar craft scan).
+- **Query-length:** keep ≤2 title-first / ≥3 tag-weighted; denylist tightened for leftover
+  synonym junk.
+- **Type-aware ranking:** categorical queries reserve filter slots so parts / filters /
+  mod-author rows don’t starve each other.
+- **Disambiguation subtitles:** part rows show manufacturer · size · internal name
+  (Z-100 vs Z-400 clarity).
+- **History as suggestions:** when the query prefixes/matches recent searches, history
+  rows surface near the top (empty-field branding / clear-all unchanged).
+- **Weak-result UX:** if only weak tag/auto hits, show fewer part rows instead of ten
+  mediocre matches.
+- **Mod-suite awareness:** when duplicate display titles exist (Restock-style), lightly
+  prefer the installed non-stock suite copy.
+- **Versioning:** suggestion-research beta on **0.8.6.0**; **0.8.5.x** remains the
+  hotfix/stability line.
 
 ### v0.8.5.2 — branding footer + organic apply race restore
 - **Apply fix (same assembly, no version bump):** clicking a part suggestion (e.g. Z-100)

@@ -115,12 +115,20 @@ namespace PartSearchSuggest
         /// Skip stock SearchStart while mid-apply or a Koobal custom filter is active.
         /// Safe for a void method (unlike SearchRoutine). Typing clears the custom-filter
         /// guard first so subsequent SearchStart/SearchRoutine still get a real IEnumerator.
+        ///
+        /// Regression (v0.8.5.2 / keep in v0.8.6.0+): MUST keep HasActiveCustomFilter here.
+        /// Clearing the active custom filter on SearchStart (blur after ApplyPrecisePart /
+        /// categorizer apply) lets loose stock PartMatchesSearch overwrite the organic
+        /// filter and flood unrelated parts. Do not "simplify" this Prefix to IsSuppressed-only.
+        /// Typing still clears via StockSearchHelper.CancelPendingStockSearchForTyping.
+        /// Never skip SearchRoutine (IEnumerator → null → StartCoroutine NRE).
         /// </summary>
         [HarmonyPatch(typeof(BasePartCategorizer), "SearchStart")]
         private static class BaseSearchStartPatch
         {
             private static bool Prefix()
             {
+                // Organic apply rock-solid: block while suppressed OR custom filter active.
                 if (IsSuppressed || HasActiveCustomFilter)
                 {
                     EditorBootstrap.Log(

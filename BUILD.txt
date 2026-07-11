@@ -1,4 +1,4 @@
-Koobal Search Engine v0.8.5.2 — Build Instructions
+Koobal Search Engine v0.8.6.0 — Build Instructions
 =================================================
 
 Prerequisites
@@ -41,7 +41,7 @@ To avoid overwriting an existing install, build to a temp folder instead:
 
   dotnet build -c Release -o .\build-out
 
-Output assembly: KoobalSearchEngine.dll (expect version 0.8.5.2)
+Output assembly: KoobalSearchEngine.dll (expect version 0.8.6.0)
 
 Install / package output
 ------------------------
