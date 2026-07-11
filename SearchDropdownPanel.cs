@@ -48,6 +48,8 @@ namespace PartSearchSuggest
 
         private static Sprite _whiteSprite;
 
+        private static Sprite _trashcanSprite;
+
 
 
         private RectTransform _rootRect;
@@ -548,7 +550,7 @@ namespace PartSearchSuggest
 
                 "ClearHistoryButton",
 
-                "\U0001F5D1",
+                null,
 
                 new Color(0.18f, 0.22f, 0.28f, 1f),
 
@@ -556,7 +558,9 @@ namespace PartSearchSuggest
 
                 new Color(0.28f, 0.22f, 0.15f, 1f),
 
-                RequestClearHistory);
+                RequestClearHistory,
+
+                GetTrashcanSprite());
 
             _clearHistoryButton.SetActive(false);
 
@@ -636,7 +640,9 @@ namespace PartSearchSuggest
 
             Color pressedColor,
 
-            UnityEngine.Events.UnityAction onClick)
+            UnityEngine.Events.UnityAction onClick,
+
+            Sprite iconSprite = null)
 
         {
 
@@ -688,31 +694,73 @@ namespace PartSearchSuggest
 
 
 
-            GameObject labelObject = new GameObject("Label", typeof(RectTransform));
+            if (iconSprite != null)
 
-            labelObject.transform.SetParent(buttonObject.transform, false);
+            {
 
-            StretchFull(labelObject.GetComponent<RectTransform>());
+                GameObject iconObject = new GameObject("Icon", typeof(RectTransform));
+
+                iconObject.transform.SetParent(buttonObject.transform, false);
 
 
 
-            TextMeshProUGUI label = labelObject.AddComponent<TextMeshProUGUI>();
+                RectTransform iconRect = iconObject.GetComponent<RectTransform>();
 
-            label.text = labelText;
+                iconRect.anchorMin = new Vector2(0.5f, 0.5f);
 
-            label.fontSize = HeaderIconFontSize;
+                iconRect.anchorMax = new Vector2(0.5f, 0.5f);
 
-            label.lineSpacing = -2f;
+                iconRect.pivot = new Vector2(0.5f, 0.5f);
 
-            label.margin = Vector4.zero;
+                iconRect.sizeDelta = new Vector2(10f, 10f);
 
-            label.fontStyle = FontStyles.Bold;
+                iconRect.anchoredPosition = Vector2.zero;
 
-            label.alignment = TextAlignmentOptions.Center;
 
-            label.color = HeaderIconTextColor;
 
-            label.raycastTarget = false;
+                Image iconImage = iconObject.AddComponent<Image>();
+
+                iconImage.sprite = iconSprite;
+
+                iconImage.color = HeaderIconTextColor;
+
+                iconImage.raycastTarget = false;
+
+                iconImage.preserveAspect = true;
+
+            }
+
+            else
+
+            {
+
+                GameObject labelObject = new GameObject("Label", typeof(RectTransform));
+
+                labelObject.transform.SetParent(buttonObject.transform, false);
+
+                StretchFull(labelObject.GetComponent<RectTransform>());
+
+
+
+                TextMeshProUGUI label = labelObject.AddComponent<TextMeshProUGUI>();
+
+                label.text = labelText;
+
+                label.fontSize = HeaderIconFontSize;
+
+                label.lineSpacing = -2f;
+
+                label.margin = Vector4.zero;
+
+                label.fontStyle = FontStyles.Bold;
+
+                label.alignment = TextAlignmentOptions.Center;
+
+                label.color = HeaderIconTextColor;
+
+                label.raycastTarget = false;
+
+            }
 
 
 
@@ -1065,6 +1113,154 @@ namespace PartSearchSuggest
                 new Vector2(0.5f, 0.5f));
 
             return _whiteSprite;
+
+        }
+
+
+
+        /// <summary>
+
+        /// Programmatic 16x16 trashcan. Stock LiberationSans lacks U+1F5D1,
+
+        /// and Squad GameData has no suitable delete/trash UI sprite at this size.
+
+        /// </summary>
+
+        private static Sprite GetTrashcanSprite()
+
+        {
+
+            if (_trashcanSprite != null)
+
+            {
+
+                return _trashcanSprite;
+
+            }
+
+
+
+            const int size = 16;
+
+            Texture2D texture = new Texture2D(size, size, TextureFormat.ARGB32, false);
+
+            texture.filterMode = FilterMode.Point;
+
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            texture.hideFlags = HideFlags.HideAndDontSave;
+
+
+
+            Color clear = new Color(0f, 0f, 0f, 0f);
+
+            Color solid = Color.white;
+
+            Color[] pixels = new Color[size * size];
+
+            for (int i = 0; i < pixels.Length; i++)
+
+            {
+
+                pixels[i] = clear;
+
+            }
+
+
+
+            // Pixel art (y=0 at bottom). Readable at ~10px on dark header buttons.
+
+            System.Action<int, int> plot = (x, y) =>
+
+            {
+
+                if (x >= 0 && x < size && y >= 0 && y < size)
+
+                {
+
+                    pixels[y * size + x] = solid;
+
+                }
+
+            };
+
+
+
+            System.Action<int, int, int> hLine = (x0, x1, y) =>
+
+            {
+
+                for (int x = x0; x <= x1; x++)
+
+                {
+
+                    plot(x, y);
+
+                }
+
+            };
+
+
+
+            // Lid handle
+
+            hLine(6, 9, 14);
+
+            hLine(6, 9, 13);
+
+            // Lid
+
+            hLine(3, 12, 12);
+
+            hLine(2, 13, 11);
+
+            // Can body outline + vertical ribs
+
+            for (int y = 3; y <= 10; y++)
+
+            {
+
+                plot(2, y);
+
+                plot(13, y);
+
+                plot(5, y);
+
+                plot(8, y);
+
+                plot(11, y);
+
+            }
+
+
+
+            hLine(2, 13, 10);
+
+            hLine(3, 12, 3);
+
+            hLine(4, 11, 2);
+
+
+
+            texture.SetPixels(pixels);
+
+            texture.Apply(false, true);
+
+
+
+            _trashcanSprite = Sprite.Create(
+
+                texture,
+
+                new Rect(0f, 0f, size, size),
+
+                new Vector2(0.5f, 0.5f),
+
+                100f);
+
+            _trashcanSprite.name = "KoobalTrashcan";
+
+            return _trashcanSprite;
 
         }
 

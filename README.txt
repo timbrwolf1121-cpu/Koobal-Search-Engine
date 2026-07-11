@@ -100,6 +100,9 @@ banner plus genuine warnings/errors are logged by default.
 - **History (additive):** clicking a suggestion now records its display text in search
   history (same dedupe/move-to-top as typed). Typed Enter/submit history path unchanged.
   History is saved before the stock apply call so an apply exception cannot drop it.
+- **Clear-history icon:** header trash button uses a programmatic 16x16 trashcan sprite
+  (stock TMP font has no wastebasket glyph; no suitable Squad UI sprite found). Tooltip
+  remains "Clear history".
 
 ### v0.8.5.0-beta — optimization + sanitary beta pass
 - **Performance:** removed a redundant per-keystroke field re-scan in part matching;
