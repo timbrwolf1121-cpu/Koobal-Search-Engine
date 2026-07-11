@@ -1,9 +1,0 @@
-{
-  "id": "profile-vaborganizer",
-  "name": "VABOrganizer only",
-  "exclusiveGroup": "vab-ui-organizer",
-  "description": "Single inventory organizer: VABOrganizer via CKAN. One VABO-patched parts mod junctioned for subcategory coverage.",
-  "ckanPrimary": ["VABOrganizer"],
-  "junctionFromMain": ["NearFuturePropulsion"],
-  "notes": "NOT on main install. Never combine with PartCatalog/CategoryParts/EditorExtensions. CKAN pulls Harmony2 + ModuleManager + all VABOrganizer deps before launch."
-}

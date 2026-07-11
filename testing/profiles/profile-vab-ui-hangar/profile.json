@@ -1,9 +1,0 @@
-{
-  "id": "profile-vab-ui-hangar",
-  "name": "Hangar (main install)",
-  "exclusiveGroup": "vab-ui-organizer",
-  "description": "Editor storage overlay — alters editor UI layout around parts list.",
-  "ckanPrimary": ["Hangar"],
-  "junctionFromMain": ["Hangar"],
-  "notes": "Hangar folder is junctioned from main. apply-profile.ps1 resolves CKAN deps (AT-Utils, CommunityResourcePack, ModuleManager) automatically — do not launch without preflight GREEN."
-}

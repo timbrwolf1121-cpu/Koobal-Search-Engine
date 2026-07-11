@@ -1,9 +1,0 @@
-{
-  "id": "profile-vab-ui-kspcommunityfixes",
-  "name": "KSPCommunityFixes editor patches (main install)",
-  "exclusiveGroup": "vab-ui-organizer",
-  "description": "KSPCF includes FasterEditorPartList and other editor patches — P0 conflict surface.",
-  "ckanPrimary": ["KSPCommunityFixes"],
-  "junctionFromMain": ["KSPCommunityFixes"],
-  "notes": "CCK is always present via apply-profile base layer. KSPCF FasterEditorPartList patches PartCategorizer search pipeline. CKAN deps (Harmony2, ModuleManager) resolved automatically."
-}

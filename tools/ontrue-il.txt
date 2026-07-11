@@ -1,8 +1,0 @@
-=== OnTrueSUB ===
-Void OnTrueSUB(Category)
-=== CompileExclusionFilterSubassembly ===
-Void CompileExclusionFilterSubassembly(Boolean, Boolean)
-=== OnTrueCATEGORY ===
-Void OnTrueCATEGORY()
-=== EditorPartList.Refresh overloads ===
-Void Refresh(State)

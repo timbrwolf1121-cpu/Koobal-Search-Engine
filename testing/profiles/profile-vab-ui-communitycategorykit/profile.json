@@ -1,9 +1,0 @@
-{
-  "id": "profile-vab-ui-communitycategorykit",
-  "name": "Community Category Kit (main install)",
-  "exclusiveGroup": "vab-ui-organizer",
-  "description": "User's primary category/filter system on main install. CCK adds custom VAB tabs — high conflict risk with Koobal Search Engine.",
-  "ckanPrimary": ["CommunityCategoryKit"],
-  "junctionFromMain": ["CommunityCategoryKit"],
-  "notes": "Main install already has CCK. Junction first; CKAN resolves any missing deps before launch."
-}
