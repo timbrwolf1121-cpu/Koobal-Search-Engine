@@ -1,0 +1,13 @@
+PartCategorizer count: 1
+FullName: KSP.UI.Screens.PartCategorizer
+Category type: True
+button NonPublic: False
+button Public: True
+button Both: True
+buttonType public=True
+button public=True
+buttonPlus public=True
+subcategories public=True
+subCategoryGroup public=True
+parent public=False
+availableParts public=True

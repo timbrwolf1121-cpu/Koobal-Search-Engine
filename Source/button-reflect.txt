@@ -1,0 +1,159 @@
+﻿=== PartCategorizerButton Methods ===
+System.String get_displayCategoryName()
+KSP.UI.UIRadioButton get_activeButton()
+Void set_activeButton(KSP.UI.UIRadioButton)
+UnityEngine.Color get_color()
+Void set_color(UnityEngine.Color)
+UnityEngine.Color get_iconColor()
+Void set_iconColor(UnityEngine.Color)
+Boolean get_IsToggleBtn()
+Void set_IsToggleBtn(Boolean)
+Boolean get_LastBtn()
+Void set_LastBtn(Boolean)
+Void InitializeToggleBtn(System.String, System.String, RUI.Icons.Selectable.Icon, UnityEngine.Color, UnityEngine.Color, Boolean)
+Void InitializeBtn(System.String, System.String, RUI.Icons.Selectable.Icon, UnityEngine.Color, UnityEngine.Color)
+Void OnTrue(KSP.UI.UIRadioButton, CallType, UnityEngine.EventSystems.PointerEventData)
+Void OnFalse(KSP.UI.UIRadioButton, CallType, UnityEngine.EventSystems.PointerEventData)
+Void SetIcon(RUI.Icons.Selectable.Icon)
+Void UpdateIconState()
+Void ForceAspect()
+Void SetRadioGroup(Int32)
+Void DisableDividers()
+Void EnableDividerOverlay()
+Void EnableDividerSpaceUnder()
+Void MouseInput_click()
+Void MouseInput_pointerEnter(UnityEngine.EventSystems.PointerEventData)
+Void MouseInput_pointerExit(UnityEngine.EventSystems.PointerEventData)
+Void SetIcon(Boolean)
+Boolean IsInvoking()
+Void CancelInvoke()
+Void Invoke(System.String, Single)
+Void InvokeRepeating(System.String, Single, Single)
+Void CancelInvoke(System.String)
+Boolean IsInvoking(System.String)
+UnityEngine.Coroutine StartCoroutine(System.String)
+UnityEngine.Coroutine StartCoroutine(System.String, System.Object)
+UnityEngine.Coroutine StartCoroutine(System.Collections.IEnumerator)
+UnityEngine.Coroutine StartCoroutine_Auto(System.Collections.IEnumerator)
+Void StopCoroutine(System.Collections.IEnumerator)
+Void StopCoroutine(UnityEngine.Coroutine)
+Void StopCoroutine(System.String)
+Void StopAllCoroutines()
+Boolean get_useGUILayout()
+Void set_useGUILayout(Boolean)
+System.String GetScriptClassName()
+Boolean get_enabled()
+Void set_enabled(Boolean)
+Boolean get_isActiveAndEnabled()
+UnityEngine.Transform get_transform()
+UnityEngine.GameObject get_gameObject()
+UnityEngine.Component GetComponent(System.Type)
+Void GetComponentFastPath(System.Type, IntPtr)
+T GetComponent[T]()
+Boolean TryGetComponent(System.Type, UnityEngine.Component ByRef)
+Boolean TryGetComponent[T](T ByRef)
+UnityEngine.Component GetComponent(System.String)
+UnityEngine.Component GetComponentInChildren(System.Type, Boolean)
+UnityEngine.Component GetComponentInChildren(System.Type)
+T GetComponentInChildren[T](Boolean)
+T GetComponentInChildren[T]()
+UnityEngine.Component[] GetComponentsInChildren(System.Type, Boolean)
+UnityEngine.Component[] GetComponentsInChildren(System.Type)
+T[] GetComponentsInChildren[T](Boolean)
+Void GetComponentsInChildren[T](Boolean, System.Collections.Generic.List`1[T])
+T[] GetComponentsInChildren[T]()
+Void GetComponentsInChildren[T](System.Collections.Generic.List`1[T])
+UnityEngine.Component GetComponentInParent(System.Type)
+T GetComponentInParent[T]()
+UnityEngine.Component[] GetComponentsInParent(System.Type, Boolean)
+UnityEngine.Component[] GetComponentsInParent(System.Type)
+T[] GetComponentsInParent[T](Boolean)
+Void GetComponentsInParent[T](Boolean, System.Collections.Generic.List`1[T])
+T[] GetComponentsInParent[T]()
+UnityEngine.Component[] GetComponents(System.Type)
+Void GetComponents(System.Type, System.Collections.Generic.List`1[UnityEngine.Component])
+Void GetComponents[T](System.Collections.Generic.List`1[T])
+System.String get_tag()
+Void set_tag(System.String)
+T[] GetComponents[T]()
+Boolean CompareTag(System.String)
+Void SendMessageUpwards(System.String, System.Object, UnityEngine.SendMessageOptions)
+Void SendMessageUpwards(System.String, System.Object)
+Void SendMessageUpwards(System.String)
+Void SendMessageUpwards(System.String, UnityEngine.SendMessageOptions)
+Void SendMessage(System.String, System.Object)
+Void SendMessage(System.String)
+Void SendMessage(System.String, System.Object, UnityEngine.SendMessageOptions)
+Void SendMessage(System.String, UnityEngine.SendMessageOptions)
+Void BroadcastMessage(System.String, System.Object, UnityEngine.SendMessageOptions)
+Void BroadcastMessage(System.String, System.Object)
+Void BroadcastMessage(System.String)
+Void BroadcastMessage(System.String, UnityEngine.SendMessageOptions)
+Int32 GetInstanceID()
+Int32 GetHashCode()
+Boolean Equals(System.Object)
+System.String get_name()
+Void set_name(System.String)
+UnityEngine.HideFlags get_hideFlags()
+Void set_hideFlags(UnityEngine.HideFlags)
+System.String ToString()
+Void Finalize()
+System.Type GetType()
+System.Object MemberwiseClone()
+=== PartCategorizerButton Fields ===
+container : UIListItem
+btnToggleGeneric : UIRadioButton
+btnGeneric : Button
+hoverHandler : PointerEnterExitHandler
+divider : Image
+dividerBottom : Image
+dividerOverlay : Image
+dividerSpaceUnder : Image
+iconSpriteToggle : RawImage
+iconSprite : RawImage
+tooltipController : TooltipController_Text
+categoryName : String
+categorydisplayName : String
+icon : Icon
+<activeButton>k__BackingField : UIRadioButton
+<color>k__BackingField : Color
+<iconColor>k__BackingField : Color
+<IsToggleBtn>k__BackingField : Boolean
+OnBtnTap : Callback
+lastBtn : Boolean
+isHovering : Boolean
+colorWhite : Color
+colorBlack : Color
+=== Category OnTrue/Select methods ===
+Void OnClick(UnityEngine.EventSystems.PointerEventData, State, CallType)
+Void OnTrue(KSP.UI.UIRadioButton, CallType, UnityEngine.EventSystems.PointerEventData)
+Void OnTrueFILTER(KSP.UI.UIRadioButton, CallType, UnityEngine.EventSystems.PointerEventData)
+Void OnTrueCATEGORY()
+Void OnTrueSUB(Category)
+=== PartCategorizer subassembly fields ===
+subcategoryButtonRebuildRequested : Boolean
+subassemblies : Category
+subassembliesAll : Category
+subcategoryFunctionPods : Category
+subcategoryFunctionEngine : Category
+subcategoryFunctionFuelTank : Category
+subcategoryFunctionControl : Category
+subcategoryFunctionStructural : Category
+subcategoryFunctionCoupling : Category
+subcategoryFunctionPayload : Category
+subcategoryFunctionAero : Category
+subcategoryFunctionGround : Category
+subcategoryFunctionThermal : Category
+subcategoryFunctionElectrical : Category
+subcategoryFunctionCommunication : Category
+subcategoryFunctionScience : Category
+subcategoryFunctionCargo : Category
+subcategoryFunctionRobotics : Category
+subcategoryFunctionUtility : Category
+filterSubassemblies : EditorPartListFilter`1
+filterNothingSubassembly : EditorPartListFilter`1
+filterEverythingSubassembly : EditorPartListFilter`1
+colorSubassembly : Color
+=== UIRadioButton methods ===
+Void UnityEngine.EventSystems.IPointerClickHandler.OnPointerClick(UnityEngine.EventSystems.PointerEventData)
+Void SetState(State, CallType, UnityEngine.EventSystems.PointerEventData, Boolean)

@@ -1,0 +1,8 @@
+﻿System.Collections.IEnumerator OnDismissCoroutine()
+Void Awake()
+Void Create(KSP.UI.Screens.EditorPartList, ShipTemplate)
+Void DeleteSubassembly()
+Void MouseInput_Delete()
+Void MouseInput_Spawn()
+Void OnDeleteConfirm()
+Void OnDismiss()
