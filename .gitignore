@@ -1,0 +1,26 @@
+# ---- Build intermediates (safe to regenerate) ----
+Source/[Bb]in/
+Source/[Oo]bj/
+*.dll.mdb
+*.pdb
+
+# ---- Visual Studio / Rider / user-specific ----
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.cache
+*.tmp
+
+# ---- OS cruft ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ---------------------------------------------------------------------------
+# INTENTIONALLY TRACKED (do NOT ignore) — these are preservation artifacts:
+#   ReleaseArchive/*.zip   -> versioned built packages that travel with repo
+#   rollback/**            -> preserved rollback DLL/version/README snapshots
+#   *.csproj, *.cs, README.txt, ROLLBACK.md, RELEASE_PROCESS.md, *.version
+# ---------------------------------------------------------------------------

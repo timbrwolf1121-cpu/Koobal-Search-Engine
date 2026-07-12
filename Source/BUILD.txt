@@ -1,0 +1,82 @@
+Koobal Search Engine v0.8.5.2 — Build Instructions
+=================================================
+
+Prerequisites
+-------------
+- .NET SDK (supports `net472`; SDK 6.0+ recommended)
+- Kerbal Space Program 1.12.x installed locally
+- Harmony 2 in your KSP GameData (runtime dependency — see below)
+
+Project layout
+--------------
+- PartSearchSuggest.csproj — MSBuild project (assembly name: KoobalSearchEngine)
+- *.cs — all plugin source files in this folder
+- KoobalSearchEngine.version — copy to GameData/KoobalSearchEngine/ when packaging
+
+KSP reference paths (configured in the .csproj)
+-----------------------------------------------
+The project expects the repo/source folder to live at:
+
+  <KSP install>\Source\PartSearchSuggest\
+
+Relative paths from there:
+  KSP managed DLLs:  ..\..\KSP_x64_Data\Managed\
+  GameData:          ..\..\GameData\
+
+If you unpack this source elsewhere, either:
+  (a) place it under Source\PartSearchSuggest\ in your KSP tree, or
+  (b) edit PartSearchSuggest.csproj KspDir/KspManaged/KspGameData paths.
+
+Build (Release)
+---------------
+From this folder:
+
+  dotnet build -c Release
+
+WARNING: The default OutputPath in PartSearchSuggest.csproj writes directly to:
+
+  <KSP install>\GameData\KoobalSearchEngine\Plugins\
+
+To avoid overwriting an existing install, build to a temp folder instead:
+
+  dotnet build -c Release -o .\build-out
+
+Output assembly: KoobalSearchEngine.dll (expect version 0.8.5.2)
+
+Install / package output
+------------------------
+Copy into your KSP GameData tree:
+
+  KoobalSearchEngine.dll          -> GameData/KoobalSearchEngine/Plugins/
+  KoobalSearchEngine.version      -> GameData/KoobalSearchEngine/
+  README.txt, LICENSE             -> GameData/KoobalSearchEngine/
+  PluginData/BrandingSettings.cfg -> GameData/KoobalSearchEngine/PluginData/
+
+Do NOT ship History.cfg, branding PNGs, or .pdb in the player package.
+
+See README.txt for the full player install layout.
+
+Runtime dependencies (not bundled — document per forum rules)
+-------------------------------------------------------------
+| Dependency | Author / project        | License | Version   | Link |
+|------------|-------------------------|---------|-----------|------|
+| Harmony 2  | pardeike / KSPModdingLibs | MIT   | 2.x (HarmonyKSP) | https://github.com/KSPModdingLibs/HarmonyKSP/releases |
+
+Harmony must be installed as GameData/000_Harmony/ before Koobal loads.
+Koobal references 0Harmony.dll at build time only (Private=false); it is
+NOT redistributed in the mod zip.
+
+Compile-time references (NOT redistributed)
+-------------------------------------------
+- Assembly-CSharp.dll, UnityEngine*.dll — from KSP_x64_Data/Managed/
+- 0Harmony.dll — from GameData/000_Harmony/ (also required at runtime)
+
+BrandingAssets/
+---------------
+PNG wordmarks/taglines for marketing and documentation. Not loaded by the
+plugin at runtime (wordmark is drawn programmatically in-game).
+
+License
+-------
+MIT — see LICENSE. Author: timbrwolf1121.
+State "MIT" clearly in any forum post or download listing.
