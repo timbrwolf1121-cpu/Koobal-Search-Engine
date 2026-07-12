@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 namespace PartSearchSuggest
@@ -36,11 +37,23 @@ namespace PartSearchSuggest
 
             _versionBannerLogged = true;
 
-            System.Version version = System.Reflection.Assembly
+            // Player-facing label (e.g. 0.8.5.2a) via InformationalVersion; assembly is numeric-only.
+            string display = System.Reflection.Assembly
                 .GetExecutingAssembly()
-                .GetName()
-                .Version;
-            LogAlways("Koobal Search Engine v" + version + " active.");
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                .Select(a => a.InformationalVersion)
+                .FirstOrDefault();
+            if (string.IsNullOrEmpty(display))
+            {
+                display = System.Reflection.Assembly
+                    .GetExecutingAssembly()
+                    .GetName()
+                    .Version
+                    .ToString();
+            }
+
+            LogAlways("Koobal Search Engine v" + display + " active.");
         }
 
         /// <summary>

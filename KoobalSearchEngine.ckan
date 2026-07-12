@@ -1,0 +1,6 @@
+# Internal CKAN metadata shipped inside the player zip.
+# Express Mode (SpaceDock + "Add to CKAN") picks this up so depends are set
+# without a manual NetKAN PR. Identifier is chosen by CKAN; keep folder name
+# KoobalSearchEngine so default install find works.
+depends:
+  - name: Harmony2

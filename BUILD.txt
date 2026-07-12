@@ -1,5 +1,5 @@
-Koobal Search Engine v0.8.5.2 — Build Instructions
-=================================================
+Koobal Search Engine v0.8.5.2a — Build Instructions
+==================================================
 
 Prerequisites
 -------------
@@ -41,7 +41,7 @@ To avoid overwriting an existing install, build to a temp folder instead:
 
   dotnet build -c Release -o .\build-out
 
-Output assembly: KoobalSearchEngine.dll (expect version 0.8.5.2)
+Output assembly: KoobalSearchEngine.dll (expect assembly 0.8.5.3 / InformationalVersion 0.8.5.2a)
 
 Install / package output
 ------------------------
@@ -49,10 +49,12 @@ Copy into your KSP GameData tree:
 
   KoobalSearchEngine.dll          -> GameData/KoobalSearchEngine/Plugins/
   KoobalSearchEngine.version      -> GameData/KoobalSearchEngine/
+  KoobalSearchEngine.ckan         -> GameData/KoobalSearchEngine/  (CKAN depends: Harmony2)
   README.txt, LICENSE             -> GameData/KoobalSearchEngine/
   PluginData/BrandingSettings.cfg -> GameData/KoobalSearchEngine/PluginData/
 
-Do NOT ship History.cfg, branding PNGs, or .pdb in the player package.
+Do NOT ship History.cfg, PartPopularity.cfg, branding PNGs, or .pdb in the player package.
+See docs/SPACEDOCK_EXPRESS.md for SpaceDock / CKAN Express upload steps.
 
 See README.txt for the full player install layout.
 

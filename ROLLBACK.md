@@ -61,7 +61,8 @@ Verify the built DLL reports `0.8.4.0`:
 
 | Label | csproj / assembly | KSP `.version` | Status | Notes |
 |-------|-------------------|----------------|--------|-------|
-| **v0.8.5.2** | `0.8.5.2` / `0.8.5.2` | `0.8.5` (+BUILD 2) | **Current — dual-deployed to main + ModTest.** Rollback baseline remains v0.8.4.0. | **Branding footer centering** plus **organic apply race restore (same assembly, no version bump).** (1) Empty-query wordmark stays centered with history/resize. (2) `StockSearchGuard` again blocks void `SearchStart` while a Koobal custom filter is active (lost v0.7 / over-cleared in v0.8.5.1) so `ApplyPrecisePart` / categorizer apply survive blur instead of loose stock overwrite; typing still clears via `CancelPendingStockSearchForTyping`; never skip `SearchRoutine`. Annotated tag **`v0.8.5.2`**. Author `timbrwolf1121`. |
+| **v0.8.5.2a** | `0.8.5.3` / `0.8.5.3` (display `0.8.5.2a`) | `0.8.5` (+BUILD 3) | **Current — dual-deployed to main + ModTest.** Rollback baseline remains v0.8.4.0. | **SpaceDock / CKAN Express packaging.** Same gameplay as v0.8.5.2; short player README; internal `KoobalSearchEngine.ckan` → `depends: Harmony2`; sanitary zip `KoobalSearchEngine_v0.8.5.2a.zip`. Assembly bumped to `0.8.5.3` because letter builds cannot live in AssemblyVersion / AVC integers. Annotated tag **`v0.8.5.2a`**. Author `timbrwolf1121`. |
+| **v0.8.5.2** | `0.8.5.2` / `0.8.5.2` | `0.8.5` (+BUILD 2) | **Superseded by v0.8.5.2a.** Rollback baseline remains v0.8.4.0. | **Branding footer centering** plus **organic apply race restore (same assembly, no version bump).** (1) Empty-query wordmark stays centered with history/resize. (2) `StockSearchGuard` again blocks void `SearchStart` while a Koobal custom filter is active (lost v0.7 / over-cleared in v0.8.5.1) so `ApplyPrecisePart` / categorizer apply survive blur instead of loose stock overwrite; typing still clears via `CancelPendingStockSearchForTyping`; never skip `SearchRoutine`. Annotated tag **`v0.8.5.2`**. Author `timbrwolf1121`. |
 | **v0.8.5.1-beta** | `0.8.5.1` / `0.8.5.1` | `0.8.5` (+BUILD 1) | **Superseded by v0.8.5.2.** Rollback baseline remains v0.8.4.0. | Same assembly line as v0.8.5.1, packaged as forum beta zip `KoobalSearchEngine_v0.8.5.1-beta.zip`. **Suggestion quality rebalance:** categorizer/metadata above parts (`RankScore` 100+); flat top-8 categorizer by RankScore (no harsh 3-row token bucket); denylist synonym junk; no `resourceInfo` prose scraping; query-length-aware part scoring (≤2 title-first / ≥3 tag-weighted). Annotated tag **`v0.8.5.1-beta`**. Author `timbrwolf1121`. |
 | **v0.8.5.1** | `0.8.5.1` / `0.8.5.1` | `0.8.5` | **Code lineage / intermediate tag (superseded as “current deploy” by v0.8.5.2).** | **FIX + QoL under one label.** (1) **SearchStart NRE:** do not skip `SearchRoutine`; block void `SearchStart` while apply-suppressed; clear custom-filter on focus/typing (`RecoverAfterFailedApply`). **Over-cleared on SearchStart after apply** — restored under v0.8.5.2. (2) Hangar-free index load. (3) 1080p readability. (4) Branding centering partial → fixed in v0.8.5.2. (5) Clicked-suggestion history. (6) Clear-history trashcan. (7) Suggestion quality rebalance. |
 | **v0.8.5.0-beta** | `0.8.5.0` / `0.8.5.0` | `0.8.5` | **Superseded on ModTest by v0.8.5.1. Release artifacts preserved (do not overwrite).** | **OPTIMIZATION + SANITARY BETA PASS (no behavior change vs v0.8.4.0).** Internal cleanup/optimization only — same feature set as the v0.8.4.0 core-only baseline. **Optimized hot paths:** (1) `SuggestionIndex.Match` / `GetEnterQueryMatches` dropped the redundant `WordsMatch` pre-filter (removed dead `WordsMatch`/`WordMatchesAnyField`/`FieldMatches`) — `ScorePart` already returns `Score < 0` on any non-matching word, so every query now scans each part's fields once instead of twice; (2) `MetadataSuggestionIndex.CreateModNameSuggestion` reuses the cached `mod.PartCount` (computed once in `FinalizeMetadataIndex`) instead of calling `ModFilterMatcher.CountPartsMatchingModFolder` (a full loaded-parts scan) per mod suggestion per keystroke; (3) per-keystroke diagnostic string builders (`LogAuthorMatches`, `LogIntakeQueryMatches`, `LogDedup`) now early-out when verbose logging is off. Frame-sliced/deferred index builds and the `EditorPartAvailability` warm cache are unchanged. **Logging:** new `DebugSettings.verbose` flag (default **false**) gates `EditorBootstrap.Log`; added `EditorBootstrap.LogAlways` used for a one-time concise startup banner (`Koobal Search Engine vX.Y.Z.B active.`); warnings/errors always logged. **History:** ships with NO `History.cfg` (clean first-run file created on first search); Koogle/PartSearchSuggest → Koobal migration paths intact. **Package:** ships DLL, `.version`, README (beta-appropriate, concise changelog), `Textures/*.png`, `PluginData/BrandingSettings.cfg` (clean default); the dev-only `rollback/README.txt` is no longer shipped. Build clean (0 warnings / 0 errors). |
@@ -174,15 +175,15 @@ Rebuilt from pre-v0.7.1a source on 2026-07-06. Live installs were **not** modifi
 
 ## Current deployment (do not auto-revert)
 
-As of **v0.8.5.2**, both installs run the same sanitary GameData package
-(assembly `0.8.5.2`). The verified-safe rollback baseline remains **v0.8.4.0**.
+As of **v0.8.5.2a**, both installs run the same sanitary GameData package
+(assembly `0.8.5.3`, player label `0.8.5.2a`). The verified-safe rollback baseline remains **v0.8.4.0**.
 
 | Install | Version | Path |
 |---------|---------|------|
-| Main KSP | **v0.8.5.2** (`0.8.5.2`) | `GameData/KoobalSearchEngine/Plugins/KoobalSearchEngine.dll` |
-| ModTest | **v0.8.5.2** (`0.8.5.2`) | `Kerbal Space Program - ModTest/GameData/KoobalSearchEngine/Plugins/KoobalSearchEngine.dll` |
+| Main KSP | **v0.8.5.2a** (`0.8.5.3`) | `GameData/KoobalSearchEngine/Plugins/KoobalSearchEngine.dll` |
+| ModTest | **v0.8.5.2a** (`0.8.5.3`) | `Kerbal Space Program - ModTest/GameData/KoobalSearchEngine/Plugins/KoobalSearchEngine.dll` |
 
-Forum / Desktop package: `KoobalSearchEngine_v0.8.5.2.zip`
+Forum / Desktop / SpaceDock package: `C:\Users\timbr\Desktop\KSE\KoobalSearchEngine_v0.8.5.2a.zip`
 (also in `Source/PartSearchSuggest/ReleaseArchive/`).
 
 Stable baseline archive: `Desktop/KoobalSearchEngine_v0.8.4.0_CORE_STABLE.zip` (CKAN-style
@@ -190,7 +191,8 @@ Stable baseline archive: `Desktop/KoobalSearchEngine_v0.8.4.0_CORE_STABLE.zip` (
 artifact (or the matching ReleaseArchive copy) over `GameData/KoobalSearchEngine/`.
 
 **Git tags for this release:**
-- `v0.8.5.2` — annotated release tag (branding + organic apply race restore; no new tag for apply fix).
+- `v0.8.5.2a` — annotated release tag (SpaceDock Express packaging).
+- `v0.8.5.2` — prior (branding + organic apply race); kept.
 - `v0.8.5.1-beta` / `v0.8.5.1` — prior lineage tags (kept; do not delete).
 
 **Emergency stock-safe fallback:** `Desktop/KoobalSearchEngine_v0.8.3.17-fallback_STABLE_FALLBACK.zip`
