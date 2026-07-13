@@ -1,0 +1,62 @@
+Koobal Search Engine v0.8.5.3 — Build Instructions
+==================================================
+
+Prerequisites
+-------------
+- .NET SDK 4.8+
+- Kerbal Space Program 1.12.x installed locally
+- Harmony 2 in your KSP GameData
+
+Project layout
+--------------
+- Source/PartSearchSuggest.csproj: Main project
+- Source/Lib/*.cs: Libraries
+- Source/*.cs: Main mod
+- Source/KoobalSearchEngine.version
+
+KSP reference paths (configured in the .csproj)
+-----------------------------------------------
+See example.PartSearchSuggest.csproj.user.example
+
+Build Settings
+---------------
+Release and Debug definitions are included 
+dotnet clean: Runs CoreClean and cleans out output
+
+Output assembly: KoobalSearchEngine.dll
+
+Install / package output
+------------------------
+Inside GameData/KoobalSearchEngine/Plugins/*
+Copy the KoobalSearchEngine folder into your KSP GameData
+
+See README.txt for the full player install layout.
+
+Runtime dependencies
+-------------------------------------------------------------
+| Dependency | Author / project        | License | Version   | Link |
+|------------|-------------------------|---------|-----------|------|
+| Harmony 2  | pardeike / KSPModdingLibs | MIT   | 2.x (HarmonyKSP) | https://github.com/KSPModdingLibs/HarmonyKSP/releases |
+
+
+Compile-time references 
+-------------------------------------------
+Assembly-CSharp
+0Harmony
+UnityEngine
+UnityEngine.CoreModule
+UnityEngine.UI
+UnityEngine.UIModule
+UnityEngine.IMGUIModule
+UnityEngine.TextCoreModule
+UnityEngine.TextRenderingModule
+UnityEngine.InputLegacyModule
+
+BrandingAssets/
+---------------
+PNG wordmarks/taglines for marketing and documentation. Not loaded by the
+plugin at runtime (wordmark is drawn programmatically in-game).
+
+License
+-------
+MIT — see LICENSE Author: timbrwolf1121.

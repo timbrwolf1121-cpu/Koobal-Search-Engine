@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "restore": {
+    "e:\\ksp\\plugins\\KoobalSP\\Koobal-Search-Engine\\Source\\lib\\PartSearchSuggest.csproj": {}
+  },
+  "projects": {
+    "e:\\ksp\\plugins\\KoobalSP\\Koobal-Search-Engine\\Source\\lib\\PartSearchSuggest.csproj": {
+      "version": "0.8.5.5",
+      "restore": {
+        "projectUniqueName": "e:\\ksp\\plugins\\KoobalSP\\Koobal-Search-Engine\\Source\\lib\\PartSearchSuggest.csproj",
+        "projectName": "KoobalSearchEngine",
+        "projectPath": "e:\\ksp\\plugins\\KoobalSP\\Koobal-Search-Engine\\Source\\lib\\PartSearchSuggest.csproj",
+        "packagesPath": "C:\\Users\\Evan\\.nuget\\packages\\",
+        "outputPath": "e:\\ksp\\plugins\\KoobalSP\\Koobal-Search-Engine\\Source\\lib\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\Evan\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.200\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

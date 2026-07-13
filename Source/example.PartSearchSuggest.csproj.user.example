@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project>
+    <PropertyGroup>
+        <!-- this should be the DIRECTORY in which
+             KSP.x86_64 resides. Rename to just PartSearchSuggest.csproj.user to use -->
+        <KSPRoot>E:\ksp\ksp-stock</KSPRoot>
+    </PropertyGroup>
+</Project>
