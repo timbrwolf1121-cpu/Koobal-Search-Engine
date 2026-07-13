@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>KoobalSearchEngine</AssemblyName>
+    <RootNamespace>PartSearchSuggest</RootNamespace>
+    <OutputPath>..\..\GameData\KoobalSearchEngine\Plugins\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.8.5.5</Version>
+    <AssemblyVersion>0.8.5.5</AssemblyVersion>
+    <FileVersion>0.8.5.5</FileVersion>
+    <InformationalVersion>0.8.5.3</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <NoWarn>MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <KspDir>$(MSBuildThisFileDirectory)..\..\</KspDir>
+    <KspManaged>$(KspDir)KSP_x64_Data\Managed\</KspManaged>
+    <KspGameData>$(KspDir)GameData\</KspGameData>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="tools/**" />
+    <Compile Remove="obj/**" />
+    <Compile Remove="ReleaseArchive/**" />
+    <!-- Post-v1 architecture scaffolding only — do not ship until after v1. See PostV1/README.md -->
+    <Compile Remove="PostV1\**\*.cs" />
+    <None Remove="tools/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(KspManaged)Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(KspGameData)000_Harmony\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(KspManaged)UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(KspManaged)UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(KspManaged)UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(KspManaged)UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(KspManaged)UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextCoreModule">
+      <HintPath>$(KspManaged)UnityEngine.TextCoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(KspManaged)UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(KspManaged)UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
