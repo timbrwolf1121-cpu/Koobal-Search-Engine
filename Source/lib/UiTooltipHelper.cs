@@ -39,7 +39,7 @@ namespace PartSearchSuggest
                 return _template;
             }
 
-            TooltipController_Text[] templates = Object.FindObjectsOfType<TooltipController_Text>();
+            TooltipController_Text[] templates = UnityEngine.Object.FindObjectsOfType<TooltipController_Text>();
             for (int i = 0; i < templates.Length; i++)
             {
                 TooltipController_Text candidate = templates[i];

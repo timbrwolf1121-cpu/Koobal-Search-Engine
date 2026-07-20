@@ -1,0 +1,8 @@
+is_global = true
+build_property.RootNamespace = PartSearchSuggest
+build_property.ProjectDir = e:\ksp\plugins\KoobalSP\Koobal-Search-Engine\Source\lib\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 
