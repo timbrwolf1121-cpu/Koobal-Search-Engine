@@ -322,29 +322,126 @@ namespace PartSearchSuggest
 
 
 
-            // Content facets (resource/tag/module/tech) are subsets of inclusive part matching.
-
-            // Applying them alone on Enter drops title/name/tag/resource co-hits. Prefer the
-
-            // inclusive Enter part filter for those; keep metadata-first only for categorical
-
-            // navigation (mod/author/suite/function/category/manufacturer/diameter).
-
+            // Content facets (resource/tag/module/tech): apply the same predicate as the
+            // suggestion subtitle count. Inclusive Enter is broader and disagreed with the
+            // tag · N parts row users click (and with history for the same token).
             if (IsInclusiveContentFacetKind(best.Kind))
+            {
+                EditorBootstrap.Log(
+                    "ApplyEnterSearch (content facet): kind="
+                    + best.Kind
+                    + " display='"
+                    + (best.DisplayText ?? string.Empty)
+                    + "' key='"
+                    + (best.FilterKey ?? string.Empty)
+                    + "'.");
+                ApplyCategorizerFilter(best);
+                return true;
+            }
+
+            // Mod folder / author / suite can be much thinner than a tag/module facet for the
+            // same token (e.g. TitanStarship folder = 1 PART, tag "titan" = dozens of MM clones).
+            // Prefer the richer categorizer facet so Enter/history match the subtitle count.
+            if (IsModMetadataEnterKind(best.Kind)
+                && TryGetRicherContentFacet(
+                    best,
+                    query,
+                    categorizerIndex,
+                    categorizerIndexReady,
+                    out PartSuggestion richerFacet))
+            {
+                EditorBootstrap.Log(
+                    "ApplyEnterSearch: replacing metadata-first "
+                    + best.Kind
+                    + " '"
+                    + (best.DisplayText ?? string.Empty)
+                    + "' ("
+                    + best.GetVerifiedPartCount()
+                    + " parts) with content facet '"
+                    + (richerFacet.DisplayText ?? string.Empty)
+                    + "' ("
+                    + richerFacet.GetVerifiedPartCount()
+                    + " parts).");
+                ApplyCategorizerFilter(richerFacet);
+                return true;
+            }
+
+            EditorBootstrap.Log(
+                "ApplyEnterSearch (metadata-first): kind="
+                + best.Kind
+                + " display='"
+                + (best.DisplayText ?? string.Empty)
+                + "' rank="
+                + best.RankScore
+                + ".");
+
+            ApplySuggestionFilter(best, query);
+            return true;
+
+        }
+
+
+
+        private static bool IsModMetadataEnterKind(SuggestionKind kind)
+
+        {
+
+            switch (kind)
 
             {
 
-                EditorBootstrap.Log(
+                case SuggestionKind.ModName:
 
-                    "ApplyEnterSearch: skipping metadata-first facet kind="
+                case SuggestionKind.ModAuthor:
 
-                    + best.Kind
+                case SuggestionKind.ModSuite:
 
-                    + " display='"
+                    return true;
 
-                    + (best.DisplayText ?? string.Empty)
+                default:
 
-                    + "' — using inclusive part filter.");
+                    return false;
+
+            }
+
+        }
+
+
+
+        /// <summary>
+
+        /// True when a tag/module/resource/tech suggestion for this query has a strictly larger
+
+        /// verified part count than the mod/author/suite row — so Enter must not apply the thin
+
+        /// folder filter and disagree with the richer facet subtitle the user just saw.
+
+        /// </summary>
+
+        private static bool TryGetRicherContentFacet(
+
+            PartSuggestion modSuggestion,
+
+            string query,
+
+            CategorizerSuggestionIndex categorizerIndex,
+
+            bool categorizerIndexReady,
+
+            out PartSuggestion richerFacet)
+
+        {
+            richerFacet = null;
+
+            if (modSuggestion == null
+
+                || !categorizerIndexReady
+
+                || categorizerIndex == null
+
+                || string.IsNullOrWhiteSpace(query))
+
+            {
 
                 return false;
 
@@ -352,31 +449,65 @@ namespace PartSearchSuggest
 
 
 
-            EditorBootstrap.Log(
+            int modCount = modSuggestion.GetVerifiedPartCount();
 
-                "ApplyEnterSearch (metadata-first): kind="
+            if (modCount < 0)
 
-                + best.Kind
+            {
 
-                + " display='"
+                modCount = 0;
 
-                + (best.DisplayText ?? string.Empty)
-
-                + "' rank="
-
-                + best.RankScore
-
-                + ".");
+            }
 
 
 
-            ApplySuggestionFilter(best, query);
+            int richestFacetCount = 0;
 
+            PartSuggestion richest = null;
+
+            // Ask for enough candidates that a high-count tag is not starved by rank-only top-1.
+            foreach (PartSuggestion facet in categorizerIndex.Match(query, 16))
+
+            {
+
+                if (facet == null || !IsInclusiveContentFacetKind(facet.Kind) || !facet.IsValid())
+
+                {
+
+                    continue;
+
+                }
+
+
+
+                int facetCount = facet.GetVerifiedPartCount();
+
+                if (facetCount > richestFacetCount)
+
+                {
+
+                    richestFacetCount = facetCount;
+
+                    richest = facet;
+
+                }
+
+            }
+
+
+
+            if (richest == null || richestFacetCount <= modCount)
+
+            {
+
+                return false;
+
+            }
+
+            richerFacet = richest;
             return true;
 
         }
-
-
 
         private static PartSuggestion PickBetterNonPartSuggestion(PartSuggestion current, PartSuggestion candidate)
 
@@ -450,11 +581,11 @@ namespace PartSearchSuggest
 
         /// <summary>
 
-        /// Facet kinds whose single-predicate apply is narrower than inclusive Enter matching
+        /// Facet kinds whose suggestion subtitle count is the apply predicate (tag/module/
 
-        /// (title/name/tags/resources/modules/manufacturer/tech). Enter/history must not
+        /// resource/tech). Enter/history must apply these via ApplyCategorizerFilter for
 
-        /// short-circuit to these alone.
+        /// count parity — not a thinner ModName and not a divergent inclusive re-resolve.
 
         /// </summary>
 
@@ -848,8 +979,7 @@ namespace PartSearchSuggest
 
         /// Stops in-flight stock search while the user types — Koobal dropdown only.
         /// Stock SearchStart is also Harmony-blocked unless EnterAllowStockTextSearch
-        /// (see StockSearchGuard typing halt). Clearing the custom-filter guard here keeps
-        /// post-apply typing from staying stuck, without letting blur wipe an active apply.
+        /// (see StockSearchGuard typing halt).
         /// </summary>
         internal static void CancelPendingStockSearchForTyping(string reason)
         {
@@ -859,9 +989,13 @@ namespace PartSearchSuggest
                 return;
             }
 
-            // Release custom-filter race guard on focus/typing. Do NOT clear on SearchStart
-            // itself after apply — that lets loose PartMatchesSearch overwrite ApplyPrecisePart.
-            if (!StockSearchGuard.IsSuppressed)
+            // Release custom-filter race guard only while composing a non-empty query so a
+            // later Enter/apply can install a new filter. Empty field keeps the active
+            // category/custom filter (clearing here + SearchStop was wiping to all-parts).
+            string fieldText = categorizer.searchField != null
+                ? categorizer.searchField.text ?? string.Empty
+                : string.Empty;
+            if (!StockSearchGuard.IsSuppressed && !string.IsNullOrWhiteSpace(fieldText))
             {
                 StockSearchGuard.ClearActiveCustomFilter();
             }
@@ -871,46 +1005,14 @@ namespace PartSearchSuggest
         }
 
         /// <summary>
-        /// After suggestion debounce settles on an empty field, restore the unfiltered parts
-        /// list via stock SearchStop. Must not run on the delete key event itself — typing
-        /// halt blocks empty <c>SearchField_OnValueChange</c> until this opt-in path.
+        /// Intentionally a no-op. Empty-field stock SearchStop / OnValueChange("") used to
+        /// wipe the selected category/tab (and Koobal filters) to all-parts. Clearing the
+        /// search box only refreshes the suggestion dropdown; the parts list stays until
+        /// Enter or a suggestion apply.
         /// </summary>
         internal static void RestoreUnfilteredListAfterFieldCleared()
         {
-            PartCategorizer categorizer = PartCategorizer.Instance;
-            if (categorizer == null || categorizer.searchField == null)
-            {
-                return;
-            }
-
-            if (!string.IsNullOrEmpty(categorizer.searchField.text))
-            {
-                return;
-            }
-
-            StockSearchGuard.EnterAllowStockTextSearch();
-            try
-            {
-                if (SearchFieldOnValueChange != null)
-                {
-                    SearchFieldOnValueChange.Invoke(categorizer, new object[] { string.Empty });
-                }
-                else
-                {
-                    SearchStop?.Invoke(categorizer, null);
-                }
-
-                EditorBootstrap.Log("RestoreUnfilteredListAfterFieldCleared: stock SearchStop allowed.");
-            }
-            catch (Exception ex)
-            {
-                EditorBootstrap.LogWarning(
-                    "RestoreUnfilteredListAfterFieldCleared failed: " + ex.Message);
-            }
-            finally
-            {
-                StockSearchGuard.ExitAllowStockTextSearch();
-            }
+            // Kept as a named hook so older call sites / comments stay discoverable.
         }
 
         /// <summary>
@@ -1398,73 +1500,96 @@ namespace PartSearchSuggest
 
 
 
-            StopActiveSearch(categorizer);
+            // Click path (FilterTag/Module/Resource/Tech) must not call SearchStop —
+            // SearchFilterResult(null)+refreshRequested outside suppress/force-allow races
+            // parts-panel Transition and has caused mono BEX64 / stack-overflow CTDs.
+            // Match ApplyEnterSearch: cancel SearchRoutine only, then overwrite the filter.
+            using (PartsPanelTransitionGuard.EnterForceAllowInScope())
+            using (StockSearchGuard.EnterSuppressScope())
+            {
+                try
+                {
+                    CancelSearchRoutine(categorizer);
+                    StockSearchGuard.ClearActiveCustomFilter();
 
+                    string queryText = string.IsNullOrWhiteSpace(suggestion.DisplayText)
+                        ? suggestion.FilterKey.Trim()
+                        : suggestion.DisplayText.Trim();
+                    SetSearchFieldText(categorizer.searchField, string.Empty);
 
+                    string capturedKind = suggestion.Kind.ToString();
+                    string capturedKey = suggestion.FilterKey.Trim();
+                    Func<AvailablePart, bool> capturedPredicate = predicate;
+                    string filterId = BuildCategorizerFilterId(capturedKind, capturedKey);
 
-            string queryText = string.IsNullOrWhiteSpace(suggestion.DisplayText)
+                    EditorPartListFilter<AvailablePart> filter = new EditorPartListFilter<AvailablePart>(
+                        filterId,
+                        candidate => candidate != null && capturedPredicate(candidate),
+                        string.Empty);
 
-                ? suggestion.FilterKey.Trim()
+                    ApplyCustomFilter(categorizer, filter, "ApplyCategorizerFilter");
+                    SetSearchFieldText(categorizer.searchField, queryText);
 
-                : suggestion.DisplayText.Trim();
-
-            SetSearchFieldText(categorizer.searchField, string.Empty);
-
-
-
-            string capturedKind = suggestion.Kind.ToString();
-
-            string capturedKey = suggestion.FilterKey.Trim();
-
-            Func<AvailablePart, bool> capturedPredicate = predicate;
-
-            string filterId = BuildCategorizerFilterId(capturedKind, capturedKey);
-
-
-
-            EditorPartListFilter<AvailablePart> filter = new EditorPartListFilter<AvailablePart>(
-
-                filterId,
-
-                candidate => candidate != null && capturedPredicate(candidate),
-
-                string.Empty);
-
-
-
-            ApplyCustomFilter(categorizer, filter, "ApplyCategorizerFilter");
-
-            SetSearchFieldText(categorizer.searchField, queryText);
-
-
-
-            EditorBootstrap.Log(
-
-                "ApplyCategorizerFilter: kind="
-
-                + capturedKind
-
-                + " key='"
-
-                + capturedKey
-
-                + "', display='"
-
-                + queryText
-
-                + "', matched="
-
-                + expectedMatches
-
-                + " parts, path="
-
-                + SuggestionFilterRegistry.DescribeApplyPath(suggestion.Kind, capturedKey)
-
-                + ".");
-
+                    if (DebugSettings.Verbose)
+                    {
+                        EditorBootstrap.Log(
+                            "ApplyCategorizerFilter: kind="
+                            + capturedKind
+                            + " key='"
+                            + capturedKey
+                            + "', display='"
+                            + queryText
+                            + "', matched="
+                            + expectedMatches
+                            + " parts, path="
+                            + SuggestionFilterRegistry.DescribeApplyPath(suggestion.Kind, capturedKey)
+                            + ", sample=["
+                            + FormatMatchedPartSample(capturedPredicate, 12)
+                            + "].");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    EditorBootstrap.LogWarning("ApplyCategorizerFilter failed — " + ex.Message);
+                    RecoverAfterFailedApply();
+                }
+            }
         }
 
+        /// <summary>
+        /// Verbose sample of titles that the apply predicate keeps — makes over-broad
+        /// filters visible in KSP.log when DebugSettings verbose is on.
+        /// </summary>
+        private static string FormatMatchedPartSample(Func<AvailablePart, bool> predicate, int maxSamples)
+        {
+            if (predicate == null || maxSamples <= 0)
+            {
+                return string.Empty;
+            }
 
+            var names = new List<string>(maxSamples);
+            foreach (AvailablePart part in EditorPartAvailability.GetAvailableParts())
+            {
+                if (part == null || !predicate(part))
+                {
+                    continue;
+                }
+
+                string title = !string.IsNullOrWhiteSpace(part.title) ? part.title.Trim() : part.name;
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    continue;
+                }
+
+                names.Add(title);
+                if (names.Count >= maxSamples)
+                {
+                    break;
+                }
+            }
+
+            return names.Count == 0 ? string.Empty : string.Join("; ", names);
+        }
 
         private static string BuildCategorizerFilterId(string kind, string filterKey)
 

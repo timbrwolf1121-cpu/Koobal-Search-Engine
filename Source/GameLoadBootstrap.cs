@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace PartSearchSuggest
@@ -38,11 +39,20 @@ namespace PartSearchSuggest
     /// <summary>
     /// Persistent watcher: starts indexing as soon as KSP requests EDITOR (while the loading
     /// UI / prior scene is still up), so the hitch is not post-hangar-open.
+    ///
+    /// Root cause of prior warnings/spam: <see cref="KSPAddon.Startup.Instantly"/> (and even
+    /// MainMenu <c>Awake</c>) called <c>GameEvents.onGameSceneLoadRequested.Add</c> before
+    /// EventData was fully constructed — <c>Add</c> threw NRE. Old builds retried every frame
+    /// and logged each failure. Fix: subscribe once from MainMenu <c>Start</c>, when GameEvents
+    /// is ready on KSP 1.12.x. No retry loop, no warning on the normal success path.
+    /// <see cref="GameLoadBootstrap"/> / <see cref="EditorBootstrap"/> still kick indexing if
+    /// the early event is missed.
     /// </summary>
-    [KSPAddon(KSPAddon.Startup.Instantly, true)]
+    [KSPAddon(KSPAddon.Startup.MainMenu, true)]
     public sealed class EditorLoadIndexWatcher : MonoBehaviour
     {
         private static EditorLoadIndexWatcher _instance;
+        private bool _subscribed;
 
         private void Awake()
         {
@@ -54,7 +64,13 @@ namespace PartSearchSuggest
 
             _instance = this;
             DontDestroyOnLoad(gameObject);
-            GameEvents.onGameSceneLoadRequested.Add(OnGameSceneLoadRequested);
+            // Do not subscribe here — GameEvents EventData may still be initializing in Awake.
+        }
+
+        private void Start()
+        {
+            // MainMenu Start: GameEvents is fully constructed on KSP 1.12.5.
+            SubscribeOnce();
         }
 
         private void OnDestroy()
@@ -64,8 +80,58 @@ namespace PartSearchSuggest
                 return;
             }
 
-            GameEvents.onGameSceneLoadRequested.Remove(OnGameSceneLoadRequested);
+            UnsubscribeOnce();
             _instance = null;
+        }
+
+        private void SubscribeOnce()
+        {
+            if (_subscribed)
+            {
+                return;
+            }
+
+            try
+            {
+                EventData<GameScenes> sceneLoad = GameEvents.onGameSceneLoadRequested;
+                if (sceneLoad == null)
+                {
+                    // Should not happen at MainMenu Start. Fall open silently —
+                    // GameLoadBootstrap / EditorBootstrap still build when EDITOR loads.
+                    return;
+                }
+
+                sceneLoad.Add(OnGameSceneLoadRequested);
+                _subscribed = true;
+                EditorBootstrap.Log("EditorLoadIndexWatcher: subscribed to onGameSceneLoadRequested.");
+            }
+            catch (Exception)
+            {
+                // Silent fail-open — do not warn; editor bootstrap paths still index.
+            }
+        }
+
+        private void UnsubscribeOnce()
+        {
+            if (!_subscribed)
+            {
+                return;
+            }
+
+            try
+            {
+                EventData<GameScenes> sceneLoad = GameEvents.onGameSceneLoadRequested;
+                if (sceneLoad != null)
+                {
+                    sceneLoad.Remove(OnGameSceneLoadRequested);
+                }
+            }
+            catch (Exception)
+            {
+                // ignore teardown
+            }
+
+            _subscribed = false;
         }
 
         private static void OnGameSceneLoadRequested(GameScenes target)
@@ -86,7 +152,7 @@ namespace PartSearchSuggest
                 return;
             }
 
-            EditorBootstrap.LogAlways(
+            EditorBootstrap.Log(
                 "Editor scene requested — starting search index on loading buffer (before hangar).");
             GameLoadIndexService.EnsureBuildStarted(IndexBuildHost.Ensure());
         }

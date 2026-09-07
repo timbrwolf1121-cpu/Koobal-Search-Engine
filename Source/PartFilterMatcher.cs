@@ -318,33 +318,13 @@ namespace PartSearchSuggest
         }
 
         /// <summary>
-        /// Exact, prefix, or camelCase/whole-token contains (≥3 chars). No weak mid-string
-        /// embeds inside unrelated names.
+        /// Exact or boundary-aligned camelCase/token match (≥3 chars). Never unbounded
+        /// StartsWith — that pulled "titanium" into FilterTag "titan", and similar false
+        /// positives for module/resource keys.
         /// </summary>
         private static bool ResourceNameMatches(string candidate, string key)
         {
-            if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(key))
-            {
-                return false;
-            }
-
-            string name = candidate.Trim();
-            if (string.Equals(name, key, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (key.Length < 3)
-            {
-                return false;
-            }
-
-            if (name.StartsWith(key, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return SignificantTokenContains(name, key);
+            return BoundaryAwareNameMatches(candidate, key);
         }
 
         private static bool PartHasTagInField(string tagField, string tag)
@@ -358,16 +338,9 @@ namespace PartSearchSuggest
             string[] tokens = tagField.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < tokens.Length; i++)
             {
-                string token = tokens[i];
-                if (string.Equals(token, key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                // Whole-token / camelCase only — no mid-string "matter" inside unrelated tags.
-                if (key.Length >= 3
-                    && (token.StartsWith(key, StringComparison.OrdinalIgnoreCase)
-                        || SignificantTokenContains(token, key)))
+                // Exact space-token only — matches index CollectTagsFromField. No StartsWith
+                // (titan↛titanium) and no camel embeds that discovery never counted.
+                if (string.Equals(tokens[i], key, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -377,6 +350,16 @@ namespace PartSearchSuggest
         }
 
         private static bool ModuleNameMatches(string candidate, string key)
+        {
+            return BoundaryAwareNameMatches(candidate, key);
+        }
+
+        /// <summary>
+        /// Shared identity match for tags / modules / resources: exact equality, or a
+        /// boundary-aligned segment (camelCase, digit, underscore, hyphen). Rejects weak
+        /// prefixes inside longer words (titan≠titanium, heat≠heating).
+        /// </summary>
+        private static bool BoundaryAwareNameMatches(string candidate, string key)
         {
             if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(key))
             {
@@ -393,11 +376,6 @@ namespace PartSearchSuggest
             if (needle.Length < 3)
             {
                 return false;
-            }
-
-            if (name.StartsWith(needle, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
             }
 
             return SignificantTokenContains(name, needle);

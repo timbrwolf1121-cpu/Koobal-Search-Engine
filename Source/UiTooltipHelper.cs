@@ -29,7 +29,7 @@ namespace PartSearchSuggest
 
             tooltip.prefab = template.prefab;
             tooltip.textString = text;
-            tooltip.RequireInteractable = true;
+            tooltip.RequireInteractable = false;
         }
 
         private static TooltipController_Text ResolveTemplate()

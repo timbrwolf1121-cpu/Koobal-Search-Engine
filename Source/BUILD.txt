@@ -1,9 +1,9 @@
-Koobal Search Engine v0.8.5.3 — Build Instructions
-==================================================
+Koobal Search Engine v1.0.0 — Build Instructions
+================================================
 
 Prerequisites
 -------------
-- .NET SDK (supports `net472`; SDK 6.0+ recommended)
+- .NET SDK (supports `net48`; SDK 6.0+ recommended)
 - Kerbal Space Program 1.12.x installed locally
 - Harmony 2 in your KSP GameData (runtime dependency — see below)
 
@@ -15,33 +15,33 @@ Project layout
 
 KSP reference paths (configured in the .csproj)
 -----------------------------------------------
-The project expects the repo/source folder to live at:
+Set **KSPRoot** to your KSP 1.12.5 install in both:
 
-  <KSP install>\Source\PartSearchSuggest\
+  1. PartSearchSuggest.csproj (optional default)
+  2. PartSearchSuggest.csproj.user (local; do not commit secrets)
 
-Relative paths from there:
-  KSP managed DLLs:  ..\..\KSP_x64_Data\Managed\
-  GameData:          ..\..\GameData\
+If KSPRoot is unset, the project defaults to two folders above this Source/
+folder (legacy in-KSP layout).
 
-If you unpack this source elsewhere, either:
-  (a) place it under Source\PartSearchSuggest\ in your KSP tree, or
-  (b) edit PartSearchSuggest.csproj KspDir/KspManaged/KspGameData paths.
-
-Build (Release)
----------------
+Build (1.0.0 ship)
+------------------
 From this folder:
 
-  dotnet build -c Release
+  dotnet build -c ReleaseV09
 
-WARNING: The default OutputPath in PartSearchSuggest.csproj writes directly to:
+That defines KOOBAL_V09 (scroll-recycle) and stamps 1.0.0 / 1.0.0.0.
 
-  <KSP install>\GameData\KoobalSearchEngine\Plugins\
+`dotnet build -c Release` is the 0.8.5.3b rollback (assembly 0.8.5.7).
 
-To avoid overwriting an existing install, build to a temp folder instead:
+Default OutputPath writes to:
 
-  dotnet build -c Release -o .\build-out
+  $(KSPRoot)GameData\KoobalSearchEngine\Plugins\
 
-Output assembly: KoobalSearchEngine.dll (expect assembly 0.8.5.5 / InformationalVersion 0.8.5.3)
+To avoid overwriting an existing install:
+
+  dotnet build -c ReleaseV09 -o .\build-out
+
+Output assembly: KoobalSearchEngine.dll (1.0.0 / assembly 1.0.0.0)
 
 Install / package output
 ------------------------
@@ -49,17 +49,16 @@ Copy into your KSP GameData tree:
 
   KoobalSearchEngine.dll          -> GameData/KoobalSearchEngine/Plugins/
   KoobalSearchEngine.version      -> GameData/KoobalSearchEngine/
-  KoobalSearchEngine.ckan         -> GameData/KoobalSearchEngine/  (CKAN depends: Harmony2)
   README.txt, LICENSE             -> GameData/KoobalSearchEngine/
-  PluginData/BrandingSettings.cfg -> GameData/KoobalSearchEngine/PluginData/
+
+CKAN id is KoobalSearchEngine (depends: Harmony2). Player zip is also on SpaceDock.
 
 Do NOT ship History.cfg, PartPopularity.cfg, branding PNGs, or .pdb in the player package.
-See docs/SPACEDOCK_EXPRESS.md for SpaceDock / CKAN Express upload steps.
 
-See README.txt for the full player install layout.
+See README.txt for the player install layout.
 
-Runtime dependencies (not bundled — document per forum rules)
--------------------------------------------------------------
+Runtime dependencies (not bundled)
+----------------------------------
 | Dependency | Author / project        | License | Version   | Link |
 |------------|-------------------------|---------|-----------|------|
 | Harmony 2  | pardeike / KSPModdingLibs | MIT   | 2.x (HarmonyKSP) | https://github.com/KSPModdingLibs/HarmonyKSP/releases |
@@ -72,11 +71,6 @@ Compile-time references (NOT redistributed)
 -------------------------------------------
 - Assembly-CSharp.dll, UnityEngine*.dll — from KSP_x64_Data/Managed/
 - 0Harmony.dll — from GameData/000_Harmony/ (also required at runtime)
-
-BrandingAssets/
----------------
-PNG wordmarks/taglines for marketing and documentation. Not loaded by the
-plugin at runtime (wordmark is drawn programmatically in-game).
 
 License
 -------

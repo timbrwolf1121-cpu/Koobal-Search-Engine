@@ -11,8 +11,8 @@ namespace PartSearchSuggest
     /// <see cref="BasePartCategorizer.SearchStart"/> so the parts list does not rebuild
     /// on every keystroke (including backspace-to-empty). Opt in via
     /// <see cref="EnterAllowStockTextSearch"/> for explicit stock text search
-    /// (<c>ApplySearch</c>) and deferred empty-field <c>SearchStop</c> after suggestion
-    /// debounce settles.
+    /// (<c>ApplySearch</c>). Empty field must NOT run stock SearchStop — that wiped
+    /// category/tab filters to all-parts; leave the list until Enter / suggestion apply.
     ///
     /// Organic apply race (v0.8.5.2): while Koobal is applying a suggestion filter
     /// (EnterSuppress) or a Koobal custom filter is active, also block stock SearchStart
@@ -33,6 +33,7 @@ namespace PartSearchSuggest
         private static int _suppressDepth;
         private static int _allowStockTextSearchDepth;
         private static string _activeCustomFilterId;
+        private static bool _patchesApplied;
 
         internal static bool IsSuppressed => _suppressDepth > 0;
 
@@ -126,10 +127,16 @@ namespace PartSearchSuggest
 
         internal static void ApplyPatches()
         {
+            if (_patchesApplied)
+            {
+                return;
+            }
+
             try
             {
                 Harmony harmony = new Harmony("KoobalSearchEngine.StockSearchGuard");
                 HarmonyPatchHelper.PatchNestedTypes(harmony, typeof(StockSearchGuard));
+                _patchesApplied = true;
                 EditorBootstrap.Log(
                     "Stock search guard patches applied (typing halt + organic apply race).");
             }
@@ -142,8 +149,7 @@ namespace PartSearchSuggest
 
         /// <summary>
         /// Block stock value-change → SearchStart while typing, including empty text.
-        /// Empty-field SearchStop is deferred by EditorSearchHook after suggestion debounce
-        /// (via EnterAllowStockTextSearch) so clearing the box does not hitch on the key event.
+        /// Clearing the box must not opt into stock SearchStop (preserves category/tab).
         /// </summary>
         [HarmonyPatch(typeof(BasePartCategorizer), "SearchField_OnValueChange")]
         private static class SearchFieldOnValueChangePatch

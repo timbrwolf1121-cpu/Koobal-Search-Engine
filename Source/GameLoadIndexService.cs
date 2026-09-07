@@ -154,7 +154,7 @@ namespace PartSearchSuggest
                     _metadataIndex = null;
                     _categorizerIndex = null;
 
-                    EditorBootstrap.LogAlways(
+                    EditorBootstrap.Log(
                         "Building search index during VAB/SPH loading transition (sync)...");
                     RunSyncBuild(saveKey);
                 }
@@ -203,7 +203,7 @@ namespace PartSearchSuggest
                 _metadataIndex = null;
                 _categorizerIndex = null;
 
-                EditorBootstrap.LogAlways(
+                EditorBootstrap.Log(
                     "Building search index during VAB/SPH loading transition (sync)...");
 
                 // Wait for PartLoader under the lock so no second coroutine enters RunSyncBuild.
@@ -255,7 +255,7 @@ namespace PartSearchSuggest
             var metadataStopwatch = Stopwatch.StartNew();
             _metadataIndex.Build();
             metadataStopwatch.Stop();
-            EditorBootstrap.LogAlways(
+            EditorBootstrap.Log(
                 "MetadataSuggestionIndex complete in "
                 + metadataStopwatch.ElapsedMilliseconds
                 + "ms.");
@@ -264,7 +264,7 @@ namespace PartSearchSuggest
             var categorizerStopwatch = Stopwatch.StartNew();
             _categorizerIndex.Build();
             categorizerStopwatch.Stop();
-            EditorBootstrap.LogAlways(
+            EditorBootstrap.Log(
                 "CategorizerSuggestionIndex complete ("
                 + _categorizerIndex.EntryCount
                 + " entries) in "
@@ -279,7 +279,7 @@ namespace PartSearchSuggest
 
             _fullReady = true;
             IndexDebugDump.LogIfEnabled(_partIndex, _metadataIndex, _categorizerIndex);
-            EditorBootstrap.LogAlways("Search ready (full)");
+            EditorBootstrap.Log("Search ready (full)");
         }
 
         /// <summary>

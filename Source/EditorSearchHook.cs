@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using KSP.UI.Screens;
 using TMPro;
 using UnityEngine;
@@ -81,11 +80,20 @@ namespace PartSearchSuggest
         private int _suggestionRefreshRequestId;
         private int _lastValueChangedLength = -1;
         private string _pendingHistoryQuery;
+        /// <summary>
+        /// Non-history suggestion queued so Hide/Restore can settle before filter install.
+        /// Applying FilterTag/mod while the parts panel is still collapsed lets Restore wipe
+        /// PartSearch results (symptom: tag · 39 → ~7 leftover icons).
+        /// </summary>
+        private PartSuggestion _pendingFilterSuggestion;
         // Focus/click → caret at end; debounce suggestion refresh preserves mid-edit caret.
         private bool _preferCaretAtEndThisFocus;
         private bool _userAdjustedCaretThisFocus;
         // Fight TMP focus/select-all reset for a few frames after click/focus.
         private int _caretAtEndGraceFrames;
+        // Enter / suggestion apply intentionally blur — suppress spurious re-lock.
+        private bool _releasingSearchFocus;
+        private readonly SuggestionShowGate _showGate = new SuggestionShowGate();
 
         private void Start()
         {
@@ -162,6 +170,7 @@ namespace PartSearchSuggest
             _dropdown.OnSuggestionChosen += ApplySuggestion;
             _dropdown.OnDismissed += DismissDropdown;
             _dropdown.OnClearHistoryRequested += ClearSearchHistory;
+            _dropdown.OnHistoryItemDismissed += DismissHistoryItem;
 
             HookSearchField();
             AttachSearchFieldPointerHandler();
@@ -173,25 +182,6 @@ namespace PartSearchSuggest
             EditorBootstrap.Log("Hooked native editor search field.");
             IndexDebugDump.LogIfEnabled(_index, _metadataIndex, _categorizerIndex);
             // Do not auto-ShowSuggestions on editor-ready — that reflowed/shrunk stock UI.
-        }
-
-        private void TryShowDropdownIfSearchFieldActive(string source)
-        {
-            if (!_readyForSuggestions || _searchField == null || _applyingSuggestion)
-            {
-                return;
-            }
-
-            if (!_searchField.isFocused && !IsSearchFieldStillActive(_searchField))
-            {
-                return;
-            }
-
-            EditorBootstrap.Log(
-                "TryShowDropdownIfSearchFieldActive("
-                + source
-                + "): search field already active — showing dropdown.");
-            RequestShowFromInteraction(source);
         }
 
         private void HookSearchField()
@@ -224,6 +214,56 @@ namespace PartSearchSuggest
         private static void ReleaseSearchFieldKeyboardLock()
         {
             InputLockManager.RemoveControlLock(SearchFieldTextInputLockId);
+        }
+
+        /// <summary>
+        /// Enter apply and suggestion click must leave the editor usable: clear EventSystem
+        /// selection, deactivate TMP, and drop the stock SearchFieldTextInput KEYBOARDINPUT
+        /// lock. Without this, OnSearchDeselected can treat lingering EventSystem selection as
+        /// "still active" and re-assert the lock after isFocused is already false — trapping
+        /// keyboard/camera until the user re-enters then leaves the search bar.
+        /// </summary>
+        private void ReleaseSearchFieldFocusAndLock(string reason)
+        {
+            if (_searchField == null)
+            {
+                return;
+            }
+
+            _releasingSearchFocus = true;
+            try
+            {
+                _preferCaretAtEndThisFocus = false;
+                _userAdjustedCaretThisFocus = false;
+                _caretAtEndGraceFrames = 0;
+
+                if (EventSystem.current != null
+                    && EventSystem.current.currentSelectedGameObject == _searchField.gameObject)
+                {
+                    EventSystem.current.SetSelectedGameObject(null);
+                }
+
+                ReleaseSearchFieldKeyboardLock();
+
+                if (_searchField.isFocused || IsSearchFieldStillActive(_searchField))
+                {
+                    _searchField.DeactivateInputField();
+                }
+
+                // Deactivate can leave EventSystem pointing at the field for a frame.
+                if (EventSystem.current != null
+                    && EventSystem.current.currentSelectedGameObject == _searchField.gameObject)
+                {
+                    EventSystem.current.SetSelectedGameObject(null);
+                }
+
+                ReleaseSearchFieldKeyboardLock();
+                EditorBootstrap.Log("ReleaseSearchFieldFocusAndLock(" + reason + ").");
+            }
+            finally
+            {
+                _releasingSearchFocus = false;
+            }
         }
 
         private struct SearchFieldCaretState
@@ -263,7 +303,7 @@ namespace PartSearchSuggest
                 return;
             }
 
-            if (state.WasFocused)
+            if (state.WasFocused && !_showGate.DismissedUntilSearchPointer)
             {
                 EnsureSearchFieldKeyboardLock();
                 PartsPanelCollapseHelper.EnsureSearchFieldInteractableWhileCollapsed();
@@ -405,6 +445,7 @@ namespace PartSearchSuggest
                 _dropdown.OnSuggestionChosen -= ApplySuggestion;
                 _dropdown.OnDismissed -= DismissDropdown;
                 _dropdown.OnClearHistoryRequested -= ClearSearchHistory;
+                _dropdown.OnHistoryItemDismissed -= DismissHistoryItem;
                 // Own overlay canvas is not under stock UI — destroy explicitly on editor exit.
                 UnityEngine.Object.Destroy(_dropdown.gameObject);
                 _dropdown = null;
@@ -499,17 +540,20 @@ namespace PartSearchSuggest
                 yield break;
             }
 
+            if (_showGate.ShouldBlockShow(source))
+            {
+                yield break;
+            }
+
             // Always refresh against the live field so a superseded key cannot paint stale rows.
             // Read-only — never assign back (that resets caret to end).
             string latest = _searchField.text ?? string.Empty;
             bool latestPreferHistory = string.IsNullOrWhiteSpace(latest);
 
-            // Deferred stock SearchStop — clearing the box must not rebuild the parts list
-            // on the delete key event itself (Harmony blocks empty OnValueChange while typing).
-            if (latestPreferHistory)
-            {
-                StockSearchHelper.RestoreUnfilteredListAfterFieldCleared();
-            }
+            // Empty field: update suggestions only. Do NOT call stock SearchStop /
+            // SearchField_OnValueChange("") — that wiped the active category/tab (and Koobal
+            // custom filters) and showed every part. Category/filter stays until Enter or a
+            // suggestion apply installs a new search.
 
             // Skip duplicate Match/Show when the settled query matches what is already painted.
             if (_dropdown != null
@@ -543,6 +587,16 @@ namespace PartSearchSuggest
                 yield break;
             }
 
+            if (_showGate.ShouldBlockShow(source))
+            {
+                yield break;
+            }
+
+            if (_showGate.ShouldSkipRebuild(query ?? string.Empty, _dropdown.IsDropdownOpen, source))
+            {
+                yield break;
+            }
+
             CancelPendingHide();
             SearchFieldCaretState caretBefore = CaptureSearchFieldCaret();
             string queryKey = query ?? string.Empty;
@@ -571,12 +625,25 @@ namespace PartSearchSuggest
                         RankScore = 0
                     });
                 }
+
+                // Empty-query browse: when history is empty, surface top categorizer filters
+                // so the dropdown is not branding-only.
+                if (queryEmpty
+                    && suggestions.Count == 0
+                    && _categorizerIndexReady
+                    && _categorizerIndex != null)
+                {
+                    foreach (PartSuggestion browse in _categorizerIndex.GetBrowseSuggestions(maxSuggestions))
+                    {
+                        suggestions.Add(browse);
+                    }
+                }
             }
 
             if (!queryEmpty)
             {
                 List<PartSuggestion> metadataSuggestions = _metadataIndexReady
-                    ? _metadataIndex.Match(query, maxMetadata).ToList()
+                    ? CopySuggestions(_metadataIndex.Match(query, maxMetadata))
                     : new List<PartSuggestion>();
 
                 if (requestId != _suggestionRefreshRequestId)
@@ -586,7 +653,7 @@ namespace PartSearchSuggest
 
                 List<PartSuggestion> categorizerSuggestions = _categorizerIndexReady
                     ? BudgetCategorizerSuggestions(
-                        _categorizerIndex.Match(query, maxCategorizerCandidates).ToList(),
+                        CopySuggestions(_categorizerIndex.Match(query, maxCategorizerCandidates)),
                         maxCategorizer,
                         maxTokenCategorizer)
                     : new List<PartSuggestion>();
@@ -679,19 +746,15 @@ namespace PartSearchSuggest
                 suggestions.AddRange(takenMeta);
                 suggestions.AddRange(takenFilters);
 
-                suggestions = SuggestionDedupHelper.Dedup(suggestions, query);
-
-                suggestions = suggestions
-                    .Where(entry => entry.IsValid())
-                    .OrderBy(entry => entry.RankScore)
-                    .ThenBy(entry => StockTabSortPriority(entry))
-                    .ThenBy(entry => SuggestionDedupHelper.GetKindPriority(entry))
-                    .ThenBy(entry => entry.DisplayText, StringComparer.OrdinalIgnoreCase)
-                    .Take(maxSuggestions)
-                    .ToList();
+                suggestions = FinalizeSuggestionRows(suggestions, query, maxSuggestions);
             }
 
             if (requestId != _suggestionRefreshRequestId || _applyingSuggestion)
+            {
+                yield break;
+            }
+
+            if (_showGate.ShouldBlockShow(source))
             {
                 yield break;
             }
@@ -729,6 +792,23 @@ namespace PartSearchSuggest
 
         private void OnSearchSelected(string _)
         {
+            if (_showGate.ShouldBlockShow("select"))
+            {
+                EditorBootstrap.Log("OnSearchSelected: skipped show — dismissed until search pointer.");
+                if (!_releasingSearchFocus)
+                {
+                    // Hide/Restore or leftover EventSystem select must not re-lock KEYBOARDINPUT
+                    // or re-open the dropdown. Pointer-down on the field clears the gate first.
+                    ReleaseSearchFieldFocusAndLock("select-blocked");
+                }
+                else
+                {
+                    ReleaseSearchFieldKeyboardLock();
+                }
+
+                return;
+            }
+
             EnsureSearchFieldKeyboardLock();
             PlaceCaretAtEndForFreshFocus();
             StockSearchHelper.CancelPendingStockSearchForTyping("search-field-focus");
@@ -738,11 +818,20 @@ namespace PartSearchSuggest
 
         private void OnSearchDeselected(string _)
         {
-            if (IsSearchFieldStillActive(_searchField))
+            if (_releasingSearchFocus)
             {
-                // Dropdown rebuild / collapse can fire a spurious deselect — keep lock + ignore.
+                ReleaseSearchFieldKeyboardLock();
+                EditorBootstrap.Log("OnSearchDeselected: intentional release in progress.");
+                return;
+            }
+
+            // Only treat as spurious when TMP still has input focus. EventSystem can still
+            // point at the field after Enter/EndEdit while isFocused is already false — that
+            // used to re-lock KEYBOARDINPUT forever.
+            if (_searchField != null && _searchField.isFocused)
+            {
                 EnsureSearchFieldKeyboardLock();
-                EditorBootstrap.Log("OnSearchDeselected: field still active — ignore stale blur.");
+                EditorBootstrap.Log("OnSearchDeselected: field still focused — ignore stale blur.");
                 return;
             }
 
@@ -763,6 +852,7 @@ namespace PartSearchSuggest
             }
 
             PlaceCaretAtEndForFreshFocus();
+            _showGate.MarkSearchFieldPointer();
             EditorBootstrap.Log("HandleSearchFieldPointerDown: show request.");
             RequestShowFromInteraction("pointer-down");
         }
@@ -775,6 +865,7 @@ namespace PartSearchSuggest
                 PlaceCaretAtEndForFreshFocus();
             }
 
+            _showGate.MarkSearchFieldPointer();
             EditorBootstrap.Log("HandleSearchFieldPointerClick: idempotent show request.");
             RequestShowFromInteraction("click");
         }
@@ -784,6 +875,13 @@ namespace PartSearchSuggest
             if (_applyingSuggestion)
             {
                 EditorBootstrap.Log("RequestShowFromInteraction(" + source + "): skipped — applying suggestion.");
+                return;
+            }
+
+            if (_showGate.ShouldBlockShow(source))
+            {
+                EditorBootstrap.Log(
+                    "RequestShowFromInteraction(" + source + "): skipped — dismissed until search pointer.");
                 return;
             }
 
@@ -821,6 +919,11 @@ namespace PartSearchSuggest
                 yield break;
             }
 
+            if (_showGate.ShouldBlockShow("retry-" + source))
+            {
+                yield break;
+            }
+
             if (!_readyForSuggestions)
             {
                 EditorBootstrap.Log(
@@ -842,6 +945,13 @@ namespace PartSearchSuggest
         private void OnSearchValueChanged(string value)
         {
             if (_applyingSuggestion)
+            {
+                return;
+            }
+
+            // After X/dim/Enter/blur, TMP can fire value-changed while deactivating. That used
+            // to CancelPendingHide and schedule a debounce Show — Hide was immediately re-shown.
+            if (_releasingSearchFocus || _showGate.DismissedUntilSearchPointer)
             {
                 return;
             }
@@ -873,15 +983,13 @@ namespace PartSearchSuggest
             CancelPendingSuggestionRefresh();
 
             string trimmed = (value ?? string.Empty).Trim();
-            CommitSearchHistory(value);
+            CommitSearchHistory(value, force: true);
 
             // Same hang risk as history: ApplyEnterSearch must not run while the dropdown
             // still owns/blocks partsEditor Transition("In"). Hide first, defer apply.
-            if (_dropdown != null && _dropdown.IsDropdownOpen)
-            {
-                _dropdown.Hide();
-            }
-            else
+            bool dropdownWasOpen = _dropdown != null && _dropdown.IsDropdownOpen;
+            CloseDropdownKeepingDismissed("submit");
+            if (!dropdownWasOpen)
             {
                 ScheduleHideAfterSubmit("submit");
             }
@@ -895,26 +1003,42 @@ namespace PartSearchSuggest
 
                 _pendingHistoryApplyCoroutine = StartCoroutine(ApplyHistoryEnterDeferred(trimmed));
             }
+
+            // Mirror suggestion-click: blur + drop KEYBOARDINPUT so camera / part pick work
+            // immediately after Enter (do not wait for leave/re-enter).
+            ReleaseSearchFieldFocusAndLock("submit");
         }
 
         private void OnSearchEndEdit(string value)
         {
             EditorBootstrap.Log("OnSearchEndEdit: '" + (value ?? string.Empty) + "'.");
 
-            if (IsSearchFieldStillActive(_searchField))
+            if (_releasingSearchFocus)
+            {
+                ReleaseSearchFieldKeyboardLock();
+                CancelPendingSuggestionRefresh();
+                ArmDismissUntilSearchPointer();
+                ScheduleHideAfterSubmit("end-edit-release");
+                CommitSearchHistory(value);
+                return;
+            }
+
+            // Same as OnSearchDeselected: only isFocused means "still editing".
+            if (_searchField != null && _searchField.isFocused)
             {
                 EnsureSearchFieldKeyboardLock();
-                EditorBootstrap.Log("OnSearchEndEdit: field still active — skip blur/hide schedule.");
+                EditorBootstrap.Log("OnSearchEndEdit: field still focused — skip blur/hide schedule.");
                 return;
             }
 
             ReleaseSearchFieldKeyboardLock();
             CancelPendingSuggestionRefresh();
+            ArmDismissUntilSearchPointer();
             ScheduleHideAfterSubmit("end-edit");
             CommitSearchHistory(value);
         }
 
-        private void CommitSearchHistory(string value)
+        private void CommitSearchHistory(string value, bool force = false)
         {
             if (_applyingSuggestion)
             {
@@ -927,14 +1051,19 @@ namespace PartSearchSuggest
                 return;
             }
 
-            if (string.Equals(trimmed, _lastCommittedQuery, System.StringComparison.OrdinalIgnoreCase))
+            if (!force
+                && string.Equals(trimmed, _lastCommittedQuery, System.StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            _history.Remember(trimmed);
-            _lastCommittedQuery = trimmed;
-            EditorBootstrap.Log("CommitSearchHistory: remembered '" + trimmed + "'.");
+            _history.Remember(trimmed, force);
+            if (_history.Entries.Count > 0
+                && string.Equals(_history.Entries[0], trimmed, System.StringComparison.OrdinalIgnoreCase))
+            {
+                _lastCommittedQuery = trimmed;
+                EditorBootstrap.Log("CommitSearchHistory: remembered '" + trimmed + "'.");
+            }
         }
 
         /// <summary>
@@ -949,7 +1078,7 @@ namespace PartSearchSuggest
                 return;
             }
 
-            _history.Remember(trimmed);
+            _history.Remember(trimmed, force: true);
             _lastCommittedQuery = trimmed;
             EditorBootstrap.Log("RememberClickedSuggestion: remembered '" + trimmed + "'.");
         }
@@ -966,6 +1095,7 @@ namespace PartSearchSuggest
             }
 
             CancelPendingSuggestionRefresh();
+            _showGate.ClearLastShown();
 
             if (string.IsNullOrWhiteSpace(_searchField.text))
             {
@@ -1005,7 +1135,7 @@ namespace PartSearchSuggest
             if (_dropdown != null && _dropdown.IsDropdownOpen && !_applyingSuggestion)
             {
                 EditorBootstrap.Log("HideDropdownAfterSubmit(" + reason + "): hiding dropdown.");
-                _dropdown.Hide();
+                CloseDropdownKeepingDismissed(reason);
             }
             else
             {
@@ -1022,22 +1152,57 @@ namespace PartSearchSuggest
             _applyingSuggestion = false;
         }
 
+        private void DismissHistoryItem(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query) || _history == null)
+            {
+                return;
+            }
+
+            if (!_history.Remove(query))
+            {
+                EditorBootstrap.Log("DismissHistoryItem: '" + query + "' was not in history.");
+                return;
+            }
+
+            EditorBootstrap.Log("DismissHistoryItem: removed '" + query + "'.");
+            CancelPendingSuggestionRefresh();
+            _showGate.ClearLastShown();
+            if (_searchField != null)
+            {
+                ShowSuggestions(
+                    _searchField.text,
+                    preferHistory: string.IsNullOrWhiteSpace(_searchField.text),
+                    source: "history-dismiss");
+            }
+        }
+
+        private void ArmDismissUntilSearchPointer()
+        {
+            _showGate.MarkDismissed();
+            _showGate.ClearLastShown();
+            _lastShownSuggestionQuery = null;
+        }
+
+        private void CloseDropdownKeepingDismissed(string reason)
+        {
+            ArmDismissUntilSearchPointer();
+            if (_dropdown != null && _dropdown.IsDropdownOpen)
+            {
+                EditorBootstrap.Log("CloseDropdownKeepingDismissed(" + reason + ").");
+                _dropdown.Hide();
+            }
+        }
+
         private void DismissDropdown()
         {
             CancelPendingHide();
             CancelPendingSuggestionRefresh();
-            _lastShownSuggestionQuery = null;
-
-            if (_dropdown != null && _dropdown.IsDropdownOpen)
-            {
-                EditorBootstrap.Log("DismissDropdown: hiding dropdown.");
-                _dropdown.Hide();
-            }
+            CloseDropdownKeepingDismissed("dismiss");
 
             if (_searchField != null)
             {
-                ReleaseSearchFieldKeyboardLock();
-                _searchField.DeactivateInputField();
+                ReleaseSearchFieldFocusAndLock("dismiss");
             }
         }
 
@@ -1065,6 +1230,24 @@ namespace PartSearchSuggest
         {
             if (_dropdown == null)
             {
+                return;
+            }
+
+            if (_showGate.ShouldBlockShow(source))
+            {
+                EditorBootstrap.Log(
+                    "ShowSuggestions(" + source + "): blocked — dismissed until search pointer.");
+                return;
+            }
+
+            if (_showGate.ShouldSkipRebuild(query ?? string.Empty, _dropdown.IsDropdownOpen, source))
+            {
+                EditorBootstrap.Log(
+                    "ShowSuggestions("
+                    + source
+                    + "): skip rebuild — already showing '"
+                    + (query ?? string.Empty)
+                    + "'.");
                 return;
             }
 
@@ -1113,18 +1296,29 @@ namespace PartSearchSuggest
                         RankScore = 0
                     });
                 }
+
+                if (queryEmpty
+                    && suggestions.Count == 0
+                    && _categorizerIndexReady
+                    && _categorizerIndex != null)
+                {
+                    foreach (PartSuggestion browse in _categorizerIndex.GetBrowseSuggestions(maxSuggestions))
+                    {
+                        suggestions.Add(browse);
+                    }
+                }
             }
 
 
             if (!string.IsNullOrWhiteSpace(query))
             {
                 List<PartSuggestion> metadataSuggestions = _metadataIndexReady
-                    ? _metadataIndex.Match(query, maxMetadata).ToList()
+                    ? CopySuggestions(_metadataIndex.Match(query, maxMetadata))
                     : new List<PartSuggestion>();
 
                 List<PartSuggestion> categorizerSuggestions = _categorizerIndexReady
                     ? BudgetCategorizerSuggestions(
-                        _categorizerIndex.Match(query, maxCategorizerCandidates).ToList(),
+                        CopySuggestions(_categorizerIndex.Match(query, maxCategorizerCandidates)),
                         maxCategorizer,
                         maxTokenCategorizer)
                     : new List<PartSuggestion>();
@@ -1140,18 +1334,9 @@ namespace PartSearchSuggest
                     maxMetadata,
                     maxCategorizer);
 
-                suggestions = SuggestionDedupHelper.Dedup(suggestions, query);
-
                 // IndexedPartCount makes IsValid O(1) — never RefreshVerifiedSubtitle (that used
                 // to re-scan PartLoader per filter/mod row and hitch on words like "solar").
-                suggestions = suggestions
-                    .Where(entry => entry.IsValid())
-                    .OrderBy(entry => entry.RankScore)
-                    .ThenBy(entry => StockTabSortPriority(entry))
-                    .ThenBy(entry => SuggestionDedupHelper.GetKindPriority(entry))
-                    .ThenBy(entry => entry.DisplayText, StringComparer.OrdinalIgnoreCase)
-                    .Take(maxSuggestions)
-                    .ToList();
+                suggestions = FinalizeSuggestionRows(suggestions, query, maxSuggestions);
             }
 
             PaintSuggestionDropdown(
@@ -1173,6 +1358,18 @@ namespace PartSearchSuggest
             string queryKey,
             SearchFieldCaretState caretBefore)
         {
+            if (_showGate.ShouldBlockShow(source))
+            {
+                EditorBootstrap.Log(
+                    "PaintSuggestionDropdown(" + source + "): blocked — skip paint.");
+                if (_dropdown != null && _dropdown.IsDropdownOpen)
+                {
+                    _dropdown.Hide();
+                }
+
+                return;
+            }
+
             bool showBrandingFooter = queryEmpty;
 
             if (suggestions.Count == 0 && !showBrandingFooter)
@@ -1189,6 +1386,7 @@ namespace PartSearchSuggest
                 }
 
                 _lastShownSuggestionQuery = queryKey;
+                _showGate.NoteShown(queryKey);
                 RestoreSearchFieldCaret(caretBefore);
                 return;
             }
@@ -1221,6 +1419,7 @@ namespace PartSearchSuggest
                 showBrandingFooter);
 
             _lastShownSuggestionQuery = queryKey;
+            _showGate.NoteShown(queryKey);
             RestoreSearchFieldCaret(caretBefore);
         }
 
@@ -1309,6 +1508,95 @@ namespace PartSearchSuggest
         /// Strong stock Function/Category matches (display/alias prefix boost → RankScore &lt; 0)
         /// sort ahead of parts/mods at the same band so Engines/Thermal stay visible near the top.
         /// </summary>
+        private static List<PartSuggestion> CopySuggestions(IEnumerable<PartSuggestion> source)
+        {
+            var list = new List<PartSuggestion>();
+            if (source == null)
+            {
+                return list;
+            }
+
+            foreach (PartSuggestion item in source)
+            {
+                list.Add(item);
+            }
+
+            return list;
+        }
+
+        /// <summary>
+        /// Dedup + O(1) IsValid + in-place sort/cap. Avoids LINQ OrderBy/ToList allocs on
+        /// every typed query (same ordering as the previous LINQ chain).
+        /// </summary>
+        private static List<PartSuggestion> FinalizeSuggestionRows(
+            List<PartSuggestion> suggestions,
+            string query,
+            int maxSuggestions)
+        {
+            suggestions = SuggestionDedupHelper.Dedup(suggestions, query);
+            int write = 0;
+            for (int i = 0; i < suggestions.Count; i++)
+            {
+                PartSuggestion entry = suggestions[i];
+                if (entry != null && entry.IsValid())
+                {
+                    suggestions[write++] = entry;
+                }
+            }
+
+            if (write < suggestions.Count)
+            {
+                suggestions.RemoveRange(write, suggestions.Count - write);
+            }
+
+            suggestions.Sort(CompareSuggestionDisplayOrder);
+            if (maxSuggestions >= 0 && suggestions.Count > maxSuggestions)
+            {
+                suggestions.RemoveRange(maxSuggestions, suggestions.Count - maxSuggestions);
+            }
+
+            return suggestions;
+        }
+
+        private static int CompareSuggestionDisplayOrder(PartSuggestion left, PartSuggestion right)
+        {
+            if (ReferenceEquals(left, right))
+            {
+                return 0;
+            }
+
+            if (left == null)
+            {
+                return 1;
+            }
+
+            if (right == null)
+            {
+                return -1;
+            }
+
+            int compare = left.RankScore.CompareTo(right.RankScore);
+            if (compare != 0)
+            {
+                return compare;
+            }
+
+            compare = StockTabSortPriority(left).CompareTo(StockTabSortPriority(right));
+            if (compare != 0)
+            {
+                return compare;
+            }
+
+            compare = SuggestionDedupHelper.GetKindPriority(left)
+                .CompareTo(SuggestionDedupHelper.GetKindPriority(right));
+            if (compare != 0)
+            {
+                return compare;
+            }
+
+            return string.Compare(left.DisplayText, right.DisplayText, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static int StockTabSortPriority(PartSuggestion suggestion)
         {
             if (suggestion == null)
@@ -1591,6 +1879,8 @@ namespace PartSearchSuggest
             _applyingSuggestion = true;
             CancelPendingHide();
             CancelPendingSuggestionRefresh();
+            _pendingHistoryQuery = null;
+            _pendingFilterSuggestion = null;
 
             try
             {
@@ -1614,78 +1904,43 @@ namespace PartSearchSuggest
                         // Before apply: click must still land in history if Apply throws.
                         RememberClickedSuggestion(suggestion.QueryText);
                         // Defer ApplyEnterSearch until after dropdown Hide/Restore settles.
-                        // One-frame defer alone was insufficient — wait for partsEditor idle
-                        // (or ForceComplete) under Transition(In) force-allow, then tight filter.
                         _pendingHistoryQuery = suggestion.QueryText;
                         EditorBootstrap.Log(
                             "ApplySuggestion (history→enter deferred): '" + suggestion.QueryText + "'");
                         break;
 
                     case SuggestionKind.ModAuthor:
-                        RememberClickedSuggestion(displayText);
-                        EditorBootstrap.Log("ApplySuggestion (author): '" + displayText + "'");
-                        StockSearchHelper.ApplyModAuthorFilter(suggestion.FilterKey ?? displayText, displayText);
-                        break;
-
                     case SuggestionKind.ModName:
-                        RememberClickedSuggestion(displayText);
-                        EditorBootstrap.Log("ApplySuggestion (mod): '" + displayText + "'");
-                        StockSearchHelper.ApplyModNameFilter(suggestion.FilterKey ?? displayText, displayText);
-                        break;
-
                     case SuggestionKind.ModSuite:
-                        RememberClickedSuggestion(displayText);
-                        EditorBootstrap.Log("ApplySuggestion (suite): '" + displayText + "'");
-                        StockSearchHelper.ApplyModSuiteFilter(suggestion.FilterKey ?? suggestion.QueryText ?? displayText, displayText);
-                        break;
-
                     case SuggestionKind.FilterFunction:
                     case SuggestionKind.FilterManufacturer:
                     case SuggestionKind.FilterDiameter:
                     case SuggestionKind.FilterCategory:
-                        RememberClickedSuggestion(displayText);
-                        EditorBootstrap.Log("ApplySuggestion (categorizer): '" + displayText + "' kind=" + suggestion.Kind);
-                        StockSearchHelper.ApplyCategorizerFilter(suggestion);
-                        break;
-
                     case SuggestionKind.FilterModule:
                     case SuggestionKind.FilterResource:
                     case SuggestionKind.FilterTech:
                     case SuggestionKind.FilterTag:
-                    {
-                        // Same inclusive Enter predicate as typed Enter / history — facet-only
-                        // filters drop title/name/tag/resource co-hits for the same token.
-                        RememberClickedSuggestion(displayText);
-                        string inclusiveQuery = suggestion.FilterKey ?? suggestion.QueryText ?? displayText;
-                        EditorBootstrap.Log(
-                            "ApplySuggestion (inclusive enter): '"
-                            + inclusiveQuery
-                            + "' kind="
-                            + suggestion.Kind);
-                        StockSearchHelper.ApplyEnterSearch(
-                            inclusiveQuery,
-                            _index,
-                            _metadataIndex,
-                            _categorizerIndex,
-                            _metadataIndexReady,
-                            _categorizerIndexReady);
-                        break;
-                    }
                     case SuggestionKind.Part:
-                    default:
-                        if (suggestion.Part == null)
+                        // Queue only — apply after Hide/Restore. Installing a custom filter while
+                        // partsEditor is still collapsed lets Restore wipe PartSearch icons.
+                        if (suggestion.Kind == SuggestionKind.Part && suggestion.Part == null)
                         {
                             EditorBootstrap.LogWarning("ApplySuggestion skipped — part suggestion invalid.");
                             return;
                         }
 
                         RememberClickedSuggestion(displayText);
+                        _pendingFilterSuggestion = suggestion;
                         EditorBootstrap.Log(
-                            "ApplySuggestion (precise): '"
+                            "ApplySuggestion (filter deferred): '"
                             + displayText
-                            + "' id="
-                            + suggestion.Part.name);
-                        StockSearchHelper.ApplyPrecisePart(suggestion.Part, displayText);
+                            + "' kind="
+                            + suggestion.Kind);
+                        break;
+
+                    default:
+                        EditorBootstrap.LogWarning(
+                            "ApplySuggestion skipped — unsupported kind " + suggestion.Kind);
                         break;
                 }
             }
@@ -1694,22 +1949,24 @@ namespace PartSearchSuggest
                 EditorBootstrap.LogWarning("ApplySuggestion failed — " + ex.Message);
                 StockSearchHelper.RecoverAfterFailedApply();
                 _pendingHistoryQuery = null;
+                _pendingFilterSuggestion = null;
             }
             finally
             {
                 if (_dropdown != null && _dropdown.IsDropdownOpen)
                 {
-                    _dropdown.Hide();
+                    CloseDropdownKeepingDismissed("suggestion");
                 }
 
                 if (_searchField != null)
                 {
-                    ReleaseSearchFieldKeyboardLock();
-                    _searchField.DeactivateInputField();
+                    ReleaseSearchFieldFocusAndLock("suggestion");
                 }
 
                 string deferredHistoryQuery = _pendingHistoryQuery;
+                PartSuggestion deferredFilter = _pendingFilterSuggestion;
                 _pendingHistoryQuery = null;
+                _pendingFilterSuggestion = null;
                 _applyingSuggestion = false;
 
                 if (!string.IsNullOrEmpty(deferredHistoryQuery))
@@ -1722,6 +1979,164 @@ namespace PartSearchSuggest
                     _pendingHistoryApplyCoroutine = StartCoroutine(
                         ApplyHistoryEnterDeferred(deferredHistoryQuery));
                 }
+                else if (deferredFilter != null)
+                {
+                    if (_pendingHistoryApplyCoroutine != null)
+                    {
+                        StopCoroutine(_pendingHistoryApplyCoroutine);
+                    }
+
+                    _pendingHistoryApplyCoroutine = StartCoroutine(
+                        ApplyFilterSuggestionDeferred(deferredFilter));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Installs the clicked filter/mod/precise suggestion after Hide/Restore settles —
+        /// same idle/force-complete gate as history Enter.
+        /// </summary>
+        private IEnumerator ApplyFilterSuggestionDeferred(PartSuggestion suggestion)
+        {
+            yield return null;
+            _pendingHistoryApplyCoroutine = null;
+
+            if (suggestion == null || _applyingSuggestion)
+            {
+                yield break;
+            }
+
+            if (_dropdown != null && _dropdown.IsDropdownOpen)
+            {
+                _dropdown.Hide();
+            }
+
+            const float maxWaitSeconds = 1.5f;
+            float deadline = Time.unscaledTime + maxWaitSeconds;
+            int frames = 0;
+            while (PartsPanelCollapseHelper.IsPartsEditorBusy()
+                   && Time.unscaledTime < deadline)
+            {
+                frames++;
+                yield return null;
+            }
+
+            bool forceCompleted = false;
+            if (PartsPanelCollapseHelper.IsPartsEditorBusy())
+            {
+                EditorBootstrap.LogWarning(
+                    "ApplyFilterSuggestionDeferred: partsEditor still busy after "
+                    + maxWaitSeconds.ToString("F1")
+                    + "s / "
+                    + frames
+                    + " frames — ForceCompletePartsEditorIn.");
+                PartsPanelCollapseHelper.ForceCompletePartsEditorIn("filter-apply");
+                forceCompleted = true;
+                yield return null;
+            }
+            else if (frames > 0)
+            {
+                EditorBootstrap.Log(
+                    "ApplyFilterSuggestionDeferred: waited "
+                    + frames
+                    + " frame(s) for partsEditor idle.");
+            }
+
+            _applyingSuggestion = true;
+            using (PartsPanelTransitionGuard.EnterForceAllowInScope())
+            {
+                try
+                {
+                    if (forceCompleted && PartsPanelCollapseHelper.IsPartsEditorBusy())
+                    {
+                        PartsPanelCollapseHelper.ForceCompletePartsEditorIn("filter-apply-retry");
+                    }
+
+                    ApplyQueuedFilterSuggestion(suggestion);
+                    // Restore can leave partsEditor ctrlGroup.interactable=false so icons
+                    // paint but cannot be picked — force interactable after filter install.
+                    PartsPanelCollapseHelper.ForceCompletePartsEditorIn("filter-apply-interactable");
+                    ReleaseSearchFieldFocusAndLock("filter-apply");
+                }
+                catch (Exception ex)
+                {
+                    EditorBootstrap.LogWarning("ApplyFilterSuggestionDeferred failed — " + ex.Message);
+                    StockSearchHelper.RecoverAfterFailedApply();
+                    ReleaseSearchFieldFocusAndLock("filter-apply-fail");
+                }
+                finally
+                {
+                    _applyingSuggestion = false;
+                }
+            }
+        }
+
+        private static void ApplyQueuedFilterSuggestion(PartSuggestion suggestion)
+        {
+            if (suggestion == null)
+            {
+                return;
+            }
+
+            string displayText = suggestion.DisplayText ?? suggestion.QueryText ?? string.Empty;
+
+            switch (suggestion.Kind)
+            {
+                case SuggestionKind.ModAuthor:
+                    EditorBootstrap.Log(
+                        "ApplySuggestion (author): '" + displayText + "'");
+                    StockSearchHelper.ApplyModAuthorFilter(suggestion.FilterKey ?? displayText, displayText);
+                    break;
+
+                case SuggestionKind.ModName:
+                    EditorBootstrap.Log(
+                        "ApplySuggestion (mod): '" + displayText + "'");
+                    StockSearchHelper.ApplyModNameFilter(suggestion.FilterKey ?? displayText, displayText);
+                    break;
+
+                case SuggestionKind.ModSuite:
+                    EditorBootstrap.Log(
+                        "ApplySuggestion (suite): '" + displayText + "'");
+                    StockSearchHelper.ApplyModSuiteFilter(
+                        suggestion.FilterKey ?? suggestion.QueryText ?? displayText,
+                        displayText);
+                    break;
+
+                case SuggestionKind.FilterFunction:
+                case SuggestionKind.FilterManufacturer:
+                case SuggestionKind.FilterDiameter:
+                case SuggestionKind.FilterCategory:
+                case SuggestionKind.FilterModule:
+                case SuggestionKind.FilterResource:
+                case SuggestionKind.FilterTech:
+                case SuggestionKind.FilterTag:
+                    // Index predicate === apply predicate. Never re-resolve via ApplyEnterSearch.
+                    EditorBootstrap.Log(
+                        "ApplySuggestion (categorizer): '"
+                        + displayText
+                        + "' kind="
+                        + suggestion.Kind
+                        + " key='"
+                        + (suggestion.FilterKey ?? string.Empty)
+                        + "'");
+                    StockSearchHelper.ApplyCategorizerFilter(suggestion);
+                    break;
+
+                case SuggestionKind.Part:
+                default:
+                    if (suggestion.Part == null)
+                    {
+                        EditorBootstrap.LogWarning("ApplySuggestion skipped — part suggestion invalid.");
+                        return;
+                    }
+
+                    EditorBootstrap.Log(
+                        "ApplySuggestion (precise): '"
+                        + displayText
+                        + "' id="
+                        + suggestion.Part.name);
+                    StockSearchHelper.ApplyPrecisePart(suggestion.Part, displayText);
+                    break;
             }
         }
 
@@ -1801,11 +2216,16 @@ namespace PartSearchSuggest
                         _categorizerIndex,
                         _metadataIndexReady,
                         _categorizerIndexReady);
+                    PartsPanelCollapseHelper.ForceCompletePartsEditorIn("history-apply-interactable");
+                    // Apply can re-select the field via stock SearchStop/Refresh paths —
+                    // re-assert blur so Enter never leaves controls trapped.
+                    ReleaseSearchFieldFocusAndLock("history-enter-apply");
                 }
                 catch (Exception ex)
                 {
                     EditorBootstrap.LogWarning("ApplyHistoryEnterDeferred failed — " + ex.Message);
                     StockSearchHelper.RecoverAfterFailedApply();
+                    ReleaseSearchFieldFocusAndLock("history-enter-apply-fail");
                 }
                 finally
                 {

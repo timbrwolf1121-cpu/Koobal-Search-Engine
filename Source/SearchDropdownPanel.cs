@@ -36,6 +36,7 @@ namespace PartSearchSuggest
         private const float SubtitleLineHeight = 16f;
         private const float HeaderHeight = 20f;
         private const float CloseButtonSize = 14f;
+        private const float HistoryDismissButtonSize = 16f;
         private const float MaxPanelHeight = 420f;
         private const float PanelPadding = 4f;
         private const float GapBelowSearchField = 2f;
@@ -63,6 +64,8 @@ namespace PartSearchSuggest
         private LayoutElement _scrollAreaLayout;
 
         private ScrollRect _scrollRect;
+
+        private PointerEventData _wheelPointerEvent;
 
         private RectTransform _searchFieldRect;
 
@@ -100,6 +103,8 @@ namespace PartSearchSuggest
         public event Action OnDismissed;
 
         public event Action OnClearHistoryRequested;
+
+        public event Action<string> OnHistoryItemDismissed;
 
 
 
@@ -207,11 +212,11 @@ namespace PartSearchSuggest
 
             // Do NOT use Button/Selectable — a full-screen Selectable steals Left/Right from the
             // search TMP_InputField via Selectable.OnMove even when navigation is None on rows.
-            DimBlockerClickHandler clickHandler = blocker.AddComponent<DimBlockerClickHandler>();
+            PointerClickRelay clickHandler = blocker.AddComponent<PointerClickRelay>();
             clickHandler.Initialize(RequestDismiss);
         }
 
-        private sealed class DimBlockerClickHandler : MonoBehaviour, IPointerClickHandler
+        private sealed class PointerClickRelay : MonoBehaviour, IPointerClickHandler
         {
             private Action _onClick;
 
@@ -222,6 +227,68 @@ namespace PartSearchSuggest
 
             public void OnPointerClick(PointerEventData eventData)
             {
+                if (eventData != null && eventData.button != PointerEventData.InputButton.Left)
+                {
+                    return;
+                }
+
+                _onClick?.Invoke();
+            }
+        }
+
+        private sealed class RowHoverClickHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
+        {
+            private Image _image;
+            private Color _normal;
+            private Color _hover;
+            private Action _onClick;
+
+            internal void Initialize(Image image, Color normal, Color hover, Action onClick)
+            {
+                _image = image;
+                _normal = normal;
+                _hover = hover;
+                _onClick = onClick;
+            }
+
+            public void OnPointerEnter(PointerEventData eventData)
+            {
+                if (_image != null)
+                {
+                    _image.color = _hover;
+                }
+            }
+
+            public void OnPointerExit(PointerEventData eventData)
+            {
+                if (_image != null)
+                {
+                    _image.color = _normal;
+                }
+            }
+
+            public void OnPointerClick(PointerEventData eventData)
+            {
+                if (eventData != null && eventData.button != PointerEventData.InputButton.Left)
+                {
+                    return;
+                }
+
+                // History X is a child with its own handler. If Unity delivers the click to
+                // the row as well, skip apply so dismiss does not also run the search.
+                if (eventData != null)
+                {
+                    GameObject hit = eventData.pointerCurrentRaycast.gameObject;
+                    if (hit != null && hit != gameObject)
+                    {
+                        RowHoverClickHandler nested = hit.GetComponentInParent<RowHoverClickHandler>();
+                        if (nested != null && nested != this)
+                        {
+                            return;
+                        }
+                    }
+                }
+
                 _onClick?.Invoke();
             }
         }
@@ -698,25 +765,10 @@ namespace PartSearchSuggest
 
             buttonImage.raycastTarget = true;
 
-
-
-            Button button = buttonObject.AddComponent<Button>();
-
-            ColorBlock colors = button.colors;
-
-            colors.normalColor = normalColor;
-
-            colors.highlightedColor = highlightedColor;
-
-            colors.pressedColor = pressedColor;
-
-            colors.selectedColor = highlightedColor;
-
-            button.colors = colors;
-
-            button.navigation = new Navigation { mode = Navigation.Mode.None };
-
-            button.onClick.AddListener(onClick);
+            // Non-Selectable: Button.OnPointerDown would steal EventSystem selection from the
+            // search field and re-trigger ShowSuggestions while hovering history / clicking X.
+            RowHoverClickHandler hoverClick = buttonObject.AddComponent<RowHoverClickHandler>();
+            hoverClick.Initialize(buttonImage, normalColor, highlightedColor, () => onClick());
 
 
 
@@ -962,19 +1014,15 @@ namespace PartSearchSuggest
 
 
         private void ForwardScrollFromMouseWheel(float scrollDelta)
-
         {
-
-            PointerEventData eventData = new PointerEventData(EventSystem.current)
-
+            if (_wheelPointerEvent == null)
             {
+                _wheelPointerEvent = new PointerEventData(EventSystem.current);
+            }
 
-                scrollDelta = new Vector2(0f, scrollDelta)
-
-            };
-
-            ForwardScroll(eventData);
-
+            _wheelPointerEvent.Reset();
+            _wheelPointerEvent.scrollDelta = new Vector2(0f, scrollDelta);
+            ForwardScroll(_wheelPointerEvent);
         }
 
 
@@ -1612,6 +1660,11 @@ namespace PartSearchSuggest
 
         {
 
+            if (!DebugSettings.Verbose)
+            {
+                return;
+            }
+
             Camera eventCamera = GetEventCamera();
 
             Vector3[] panelCorners = new Vector3[4];
@@ -1788,7 +1841,22 @@ namespace PartSearchSuggest
         public void HideWithoutHoldNotify()
         {
             _dropdownOpen = false;
+            ClearOverlayPointerSelection();
             SetOverlayVisible(false);
+        }
+
+        private void ClearOverlayPointerSelection()
+        {
+            if (EventSystem.current == null || _rootRect == null)
+            {
+                return;
+            }
+
+            GameObject selected = EventSystem.current.currentSelectedGameObject;
+            if (selected != null && selected.transform.IsChildOf(_rootRect))
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+            }
         }
 
         public void Hide()
@@ -1813,6 +1881,8 @@ namespace PartSearchSuggest
             _dropdownOpen = false;
 
             PartsPanelCollapseHelper.NotifyDropdownOpen(false);
+
+            ClearOverlayPointerSelection();
 
 
 
@@ -1884,6 +1954,10 @@ namespace PartSearchSuggest
             bool isIconEligible = StockCategorizerIconHelper.SupportsCategoryIconRail(suggestion);
 
             float textInsetRight = _reserveCategoryIconRail ? CategoryIconRailWidth : 0f;
+            if (suggestion.IsHistory)
+            {
+                textInsetRight = Mathf.Max(textInsetRight, HistoryDismissButtonSize + 6f);
+            }
 
             float rowHeight = hasSubtitle ? RowHeightWithSubtitle : RowHeight;
 
@@ -1909,39 +1983,23 @@ namespace PartSearchSuggest
 
             rowImage.sprite = GetWhiteSprite();
 
-            rowImage.color = suggestion.IsFirstClass
+            Color normalColor = suggestion.IsFirstClass
 
                 ? new Color(0.12f, 0.22f, 0.30f, 1f)
 
                 : new Color(0.14f, 0.18f, 0.24f, 1f);
 
-            rowImage.raycastTarget = true;
-
-
-
-            Button button = row.AddComponent<Button>();
-
-            ColorBlock colors = button.colors;
-
-            colors.normalColor = rowImage.color;
-
-            colors.highlightedColor = suggestion.IsFirstClass
+            Color hoverColor = suggestion.IsFirstClass
 
                 ? new Color(0.20f, 0.36f, 0.50f, 1f)
 
                 : new Color(0.22f, 0.34f, 0.48f, 1f);
 
-            colors.pressedColor = suggestion.IsFirstClass
+            rowImage.color = normalColor;
 
-                ? new Color(0.16f, 0.30f, 0.42f, 1f)
+            rowImage.raycastTarget = true;
 
-                : new Color(0.18f, 0.28f, 0.4f, 1f);
 
-            colors.selectedColor = colors.highlightedColor;
-
-            button.colors = colors;
-
-            button.navigation = new Navigation { mode = Navigation.Mode.None };
 
             string title = suggestion.DisplayText ?? suggestion.QueryText ?? string.Empty;
 
@@ -1953,7 +2011,12 @@ namespace PartSearchSuggest
                 hasCategoryIcon = TryCreateCategoryIconRight(row.transform, suggestion, false);
             }
 
-            if (!hasCategoryIcon)
+            if (suggestion.IsHistory)
+            {
+                CreateHistoryDismissButton(row.transform, suggestion);
+            }
+
+            if (!hasCategoryIcon && !suggestion.IsHistory)
             {
                 row.AddComponent<RectMask2D>();
             }
@@ -1962,7 +2025,8 @@ namespace PartSearchSuggest
 
             PartSuggestion captured = suggestion;
 
-            AddRowPointerDownHandler(row, captured);
+            RowHoverClickHandler hoverClick = row.AddComponent<RowHoverClickHandler>();
+            hoverClick.Initialize(rowImage, normalColor, hoverColor, () => HandleRowPointerClick(captured));
 
             AttachScrollEvent(row);
 
@@ -2172,7 +2236,8 @@ namespace PartSearchSuggest
                 iconImage.texture = Texture2D.whiteTexture;
                 iconImage.uvRect = new Rect(0f, 0f, 1f, 1f);
                 iconImage.color = new Color(0.2f, 0.24f, 0.3f, 0.35f);
-                EditorBootstrap.LogWarning(
+                EditorBootstrap.LogWarningOnce(
+                    "categoryIcon." + suggestion.Kind + "." + (suggestion.FilterKey ?? suggestion.IconName ?? string.Empty),
                     "Category row icon missing for kind="
                     + suggestion.Kind
                     + " key='"
@@ -2235,54 +2300,66 @@ namespace PartSearchSuggest
 
 
 
-        private void AddRowPointerDownHandler(GameObject row, PartSuggestion suggestion)
-
+        private void CreateHistoryDismissButton(Transform rowTransform, PartSuggestion suggestion)
         {
+            string query = suggestion.QueryText ?? suggestion.DisplayText ?? string.Empty;
+            GameObject buttonObject = new GameObject("HistoryDismiss", typeof(RectTransform));
+            buttonObject.transform.SetParent(rowTransform, false);
 
-            EventTrigger trigger = row.AddComponent<EventTrigger>();
+            RectTransform buttonRect = buttonObject.GetComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(1f, 0.5f);
+            buttonRect.anchorMax = new Vector2(1f, 0.5f);
+            buttonRect.pivot = new Vector2(1f, 0.5f);
+            buttonRect.anchoredPosition = new Vector2(-4f, 0f);
+            buttonRect.sizeDelta = new Vector2(HistoryDismissButtonSize, HistoryDismissButtonSize);
 
+            Image buttonImage = buttonObject.AddComponent<Image>();
+            buttonImage.sprite = GetWhiteSprite();
+            buttonImage.color = new Color(0.18f, 0.22f, 0.28f, 1f);
+            buttonImage.raycastTarget = true;
 
+            GameObject labelObject = new GameObject("Label", typeof(RectTransform));
+            labelObject.transform.SetParent(buttonObject.transform, false);
+            StretchFull(labelObject.GetComponent<RectTransform>());
 
-            EventTrigger.Entry pointerDown = new EventTrigger.Entry
+            TextMeshProUGUI label = labelObject.AddComponent<TextMeshProUGUI>();
+            label.text = "X";
+            label.fontSize = HeaderIconFontSize;
+            label.lineSpacing = -2f;
+            label.margin = Vector4.zero;
+            label.fontStyle = FontStyles.Bold;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = HeaderIconTextColor;
+            label.raycastTarget = false;
 
-            {
-
-                eventID = EventTriggerType.PointerDown
-
-            };
-
-            pointerDown.callback.AddListener(_ => HandleRowPointerDown(suggestion));
-
-            trigger.triggers.Add(pointerDown);
-
+            RowHoverClickHandler hoverClick = buttonObject.AddComponent<RowHoverClickHandler>();
+            hoverClick.Initialize(
+                buttonImage,
+                new Color(0.18f, 0.22f, 0.28f, 1f),
+                new Color(0.35f, 0.2f, 0.2f, 1f),
+                () => RequestHistoryDismiss(query));
+            UiTooltipHelper.AttachTextTooltip(buttonObject, "Remove from history");
+            buttonObject.transform.SetAsLastSibling();
         }
 
-
-
-        private void HandleRowPointerDown(PartSuggestion suggestion)
-
+        private void RequestHistoryDismiss(string query)
         {
+            EditorBootstrap.Log("History dismiss clicked: '" + (query ?? string.Empty) + "'.");
+            OnHistoryItemDismissed?.Invoke(query);
+        }
 
+        private void HandleRowPointerClick(PartSuggestion suggestion)
+        {
             string text = suggestion.DisplayText ?? suggestion.QueryText ?? string.Empty;
-
             EditorBootstrap.Log(
-
                 "Row clicked: '"
-
                 + text
-
                 + "' kind="
-
                 + suggestion.Kind
-
                 + " key='"
-
                 + (suggestion.FilterKey ?? string.Empty)
-
                 + "'");
-
             OnSuggestionChosen?.Invoke(suggestion);
-
         }
 
 

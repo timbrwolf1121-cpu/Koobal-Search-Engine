@@ -24,15 +24,22 @@ namespace PartSearchSuggest
         private static float _blockWindowStart = -1f;
         private static UIPanelTransition _pendingInPanel;
         private static Action _pendingInFinished;
+        private static bool _patchesApplied;
 
         internal static bool IsForceAllowingIn => _forceAllowInDepth > 0;
 
         internal static void ApplyPatches()
         {
+            if (_patchesApplied)
+            {
+                return;
+            }
+
             try
             {
                 Harmony harmony = new Harmony("KoobalSearchEngine.PartsPanelTransitionGuard");
                 HarmonyPatchHelper.PatchNestedTypes(harmony, typeof(PartsPanelTransitionGuard));
+                _patchesApplied = true;
             }
             catch (Exception ex)
             {

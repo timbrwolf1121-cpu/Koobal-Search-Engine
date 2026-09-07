@@ -1,17 +1,21 @@
 Koobal Search Engine — Source Distribution
 ============================================
 
-Version:  v0.8.5.2b
-Assembly: 0.8.5.4
-Git tag:  v0.8.5.2b
+Version:  v1.0.0
+Assembly: 1.0.0.0
+Git tag:  v1.0
 License:  MIT (see LICENSE)
 Author:   timbrwolf1121
 GitHub:   https://github.com/timbrwolf1121-cpu/Koobal-Search-Engine
 
-This folder contains the complete C# source used to build the v0.8.5.2b
-plugin assembly shipped in the companion binary zip:
+This folder contains the C# source for the current v1.0.0 plugin
+(CKAN / SpaceDock: KoobalSearchEngine). Build with:
 
-  KoobalSearchEngine_v0.8.5.2b.zip
+  dotnet build -c ReleaseV09
+
+Set KSPRoot to your KSP 1.12.5 install (csproj and optional .csproj.user).
+The courtesy zip KoobalSearchEngine_v0.8.5.3_SOURCE.zip is an older snapshot
+kept beside this unpacked tree — it is not the current source.
 
 This package is source only — no compiled DLL is included here. See BUILD.txt
 for rebuild instructions and README.txt for install/usage.

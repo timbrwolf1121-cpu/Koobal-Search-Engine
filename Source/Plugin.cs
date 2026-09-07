@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -7,6 +9,9 @@ namespace PartSearchSuggest
     public sealed class EditorBootstrap : MonoBehaviour
     {
         private static bool _versionBannerLogged;
+        private static readonly Dictionary<string, float> WarningOnceKeys =
+            new Dictionary<string, float>(StringComparer.Ordinal);
+        private const float WarningOnceCooldownSeconds = 30f;
 
         private EditorSearchHook _hook;
 
@@ -15,6 +20,7 @@ namespace PartSearchSuggest
             LogVersionBannerOnce();
             StockSearchGuard.ApplyPatches();
             PartsPanelTransitionGuard.ApplyPatches();
+            ExperimentalPartsListVirtualizer.ApplyPatches();
 
             // Fallback only — preferred kick is EditorLoadIndexWatcher (onGameSceneLoadRequested)
             // so indexing finishes on the loading buffer before the hangar is interactive.
@@ -88,6 +94,40 @@ namespace PartSearchSuggest
         internal static void LogWarning(string message)
         {
             Debug.LogWarning("[Koobal] " + message);
+        }
+
+        /// <summary>
+        /// Rate-limited warning: same key logs at most once per cooldown window.
+        /// Use for paths that can fire repeatedly without being useful every time.
+        /// </summary>
+        internal static void LogWarningOnce(string key, string message)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                LogWarning(message);
+                return;
+            }
+
+            float now;
+            try
+            {
+                now = Time.unscaledTime;
+            }
+            catch
+            {
+                now = 0f;
+            }
+
+            float last;
+            if (WarningOnceKeys.TryGetValue(key, out last)
+                && now - last < WarningOnceCooldownSeconds
+                && last >= 0f)
+            {
+                return;
+            }
+
+            WarningOnceKeys[key] = now;
+            LogWarning(message);
         }
     }
 }
