@@ -14,8 +14,9 @@ This folder contains the C# source for the current v1.0.0 plugin
   dotnet build -c ReleaseV09
 
 Set KSPRoot to your KSP 1.12.5 install (csproj and optional .csproj.user).
-The courtesy zip KoobalSearchEngine_v0.8.5.3_SOURCE.zip is an older snapshot
-kept beside this unpacked tree — it is not the current source.
+Current source zip: KoobalSearchEngine_v1.0.0_SOURCE.zip
+(matches this unpacked v1.0.0 tree). The older courtesy zip
+KoobalSearchEngine_v0.8.5.3_SOURCE.zip is a historical snapshot only.
 
 This package is source only — no compiled DLL is included here. See BUILD.txt
 for rebuild instructions and README.txt for install/usage.

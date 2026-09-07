@@ -28,7 +28,8 @@ Do **not** install alongside **Koobal Native Search** (or other mods that replac
 
 - [SpaceDock](https://spacedock.info/mod/4394/Koobal+Search+Engine) — player zip (also listed on CKAN)
 - [GitHub Releases](https://github.com/timbrwolf1121-cpu/Koobal-Search-Engine/releases) — optional mirror
-- Unpacked source lives in [`Source/`](Source/). Courtesy snapshot zip (older): [`Source/KoobalSearchEngine_v0.8.5.3_SOURCE.zip`](Source/KoobalSearchEngine_v0.8.5.3_SOURCE.zip)
+- Current source zip: [`Source/KoobalSearchEngine_v1.0.0_SOURCE.zip`](Source/KoobalSearchEngine_v1.0.0_SOURCE.zip)
+- Unpacked source lives in [`Source/`](Source/). Older courtesy snapshot: [`Source/KoobalSearchEngine_v0.8.5.3_SOURCE.zip`](Source/KoobalSearchEngine_v0.8.5.3_SOURCE.zip)
 
 ## License
 
